@@ -1,0 +1,31 @@
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+/*
+class MyThread implements Callable<String>{
+
+
+    @Override
+    public String call() throws Exception {
+        System.out.println("come here ");
+        return "hello 0508";
+
+
+    }
+
+}
+*/
+
+/**
+ * 多线程中，第三种获得多线程的方式
+ * get方法一般放在最后一行
+ */
+public class CallableDemo {
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        FutureTask futureTask = new FutureTask(()->{
+            System.out.println("come here ");
+            return "hello 0508";
+        });
+        new Thread(futureTask,"A").start();
+        System.out.println(futureTask.get());
+    }
+}
