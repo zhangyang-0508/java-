@@ -1,0 +1,52 @@
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 阻塞队列
+ */
+public class BlockQueueDemo {
+    public static void main(String[] args) throws InterruptedException {
+        ArrayBlockingQueue<String> blockingQueue = new ArrayBlockingQueue<>(3);
+       //第一种直接抛异常,如果多填或多删都会报非法状态异常
+        /* System.out.println(blockingQueue.add("a"));
+        System.out.println(blockingQueue.add("b"));
+        System.out.println(blockingQueue.add("c"));
+        //System.out.println(blockingQueue.add("x"));
+        //System.out.println(blockingQueue.element());//检测元素
+        blockingQueue.remove();
+        blockingQueue.remove();
+        //blockingQueue.remove();
+        System.out.println(blockingQueue.element());*/
+    //第二种，如果多填或者多删都会报特殊值，多添会报false，多删会报null
+        /*System.out.println(blockingQueue.offer("a"));
+        System.out.println(blockingQueue.offer("a"));
+        System.out.println(blockingQueue.offer("a"));
+        System.out.println(blockingQueue.offer("a"));
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());*/
+       // System.out.println(blockingQueue.poll());//null
+
+        //第三种，如果多添或者多删，程序会处于阻塞状态，一直转
+       /* blockingQueue.put("a");
+        blockingQueue.put("a");
+        blockingQueue.put("a");
+       // blockingQueue.put("a");
+        blockingQueue.take();
+        blockingQueue.take();
+        blockingQueue.take();
+        blockingQueue.take();
+*/
+        //第四种,如果多添，如果在规定时间内无法处理，就结束程序，多删，会报false
+        System.out.println(blockingQueue.offer("a", 2l, TimeUnit.SECONDS));
+        System.out.println(blockingQueue.offer("a", 2l, TimeUnit.SECONDS));
+        System.out.println(blockingQueue.offer("a", 2l, TimeUnit.SECONDS));
+        //System.out.println(blockingQueue.offer("a", 2l, TimeUnit.SECONDS));
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+
+
+    }
+}
