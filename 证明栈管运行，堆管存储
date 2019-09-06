@@ -1,0 +1,20 @@
+import java.util.concurrent.TimeUnit;
+
+
+public class StackDemo {
+    public static  void test() throws Exception{
+        System.out.println("从方法1");
+        TimeUnit.SECONDS.sleep(2);
+        System.out.println("从方法2");
+
+    }
+    public static  void test1() throws Exception{
+       test1();
+
+    }
+    //证明栈管运行，堆管存储,模拟栈溢出
+    public static void main(String[] args) throws Exception{
+        test1();
+
+    }
+}
