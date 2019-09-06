@@ -1,0 +1,50 @@
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.SynchronousQueue;
+
+/**
+ * @author zhangyang
+ * @create 2019-09-05 15:56
+ */
+//同步队列  元素添加一个消费一个，这个队列不存储元素，，队列里面添加一个必须要取出来才能添加下一个元素
+public class SynchronousQueueDemo {
+    public static void main(String[] args) {
+        BlockingQueue<String> blockingQueue = new SynchronousQueue<>();
+        new Thread(()->{
+            try {
+                System.out.println(Thread.currentThread().getName()+"\t put1");
+                blockingQueue.put("1");
+                System.out.println(Thread.currentThread().getName()+"\t put2");
+                blockingQueue.put("2");
+                System.out.println(Thread.currentThread().getName()+"\t put3");
+                blockingQueue.put("3");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+                },"AAA").start();
+
+        new Thread(()->{
+            try {
+                System.out.println(Thread.currentThread().getName()+"\t取出"+blockingQueue.take());
+
+                System.out.println(Thread.currentThread().getName()+"\t取出"+blockingQueue.take());
+
+                System.out.println(Thread.currentThread().getName()+"\t取出"+blockingQueue.take());
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+                },"bbb").start();
+
+
+
+    }
+    /*
+     AAA	 put1
+bbb	取出1
+AAA	 put2
+AAA	 put3
+bbb	取出2
+bbb	取出3
+
+     */
+}
