@@ -1,0 +1,110 @@
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * @author zhangyang
+ * @create 2019-09-05 16:19
+ */
+class ShareData {
+    private int number = 0;
+    Lock lock = new ReentrantLock();
+    private Condition condition = lock.newCondition();
+
+    public void inCrement() {
+
+        //判断
+
+        lock.lock();
+        try {
+            while (number != 0) {
+                condition.await();
+            }
+            //干活
+            number++;
+            //通知
+            System.out.println(Thread.currentThread().getName() + "\t " + number);
+            condition.signalAll();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
+    public void deCrement() {
+        //判断
+        lock.lock();
+        try {
+            while (number == 0) {
+                condition.await();
+            }
+            //干活
+            number--;
+            System.out.println(Thread.currentThread().getName() + "\t " + number);
+            //通知
+            condition.signalAll();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+}
+
+
+/*
+高内聚 低耦合前提下，线程操作资源类
+判断/干活/通知
+防止虚假唤醒，用while判断
+模拟生产者 消费者模式
+需求：一个初始值为零的变量，两个线程对其交替操作，一个加一一个减一，来五轮
+ */
+public class ProdConsumer_TraditionDemo {
+    public static void main(String[] args) {
+        ShareData shareData = new ShareData();
+        new Thread(() -> {
+            for (int i = 1; i <= 5; i++) {
+                try {
+                    shareData.inCrement();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "AAA").start();
+        new Thread(() -> {
+            for (int i = 1; i <= 5; i++) {
+                try {
+                    shareData.deCrement();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "bbb").start();
+
+
+
+       /* new Thread(() -> {
+            for (int i = 1; i <= 5; i++) {
+                try {
+                    shareData.inCrement();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "ccc").start();
+        new Thread(() -> {
+            for (int i = 1; i <= 5; i++) {
+                try {
+                    shareData.deCrement();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "ddd").start();*/
+    }
+
+}
