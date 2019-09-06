@@ -1,0 +1,63 @@
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author zhangyang
+ * @create 2019-09-05 11:21
+ */
+//自定义线程池,模拟线程池溢出异常
+    /*
+    pool-1-thread-40
+pool-1-thread-32
+pool-1-thread-30
+pool-1-thread-22
+pool-1-thread-51
+pool-1-thread-41
+pool-1-thread-11
+java.util.concurrent.RejectedExecutionException: Task java.util.concurrent.FutureTask@3b9a45b3 rejected from java.util.concurrent.ThreadPoolExecutor@7699a589[Running, pool size = 5, active threads = 5, queued tasks = 3, completed tasks = 0]
+	at java.util.concurrent.ThreadPoolExecutor$AbortPolicy.rejectedExecution(ThreadPoolExecutor.java:2063)
+	at java.util.concurrent.ThreadPoolExecutor.reject(ThreadPoolExecutor.java:830)
+	at java.util.concurrent.ThreadPoolExecutor.execute(ThreadPoolExecutor.java:1379)
+	at java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:112)
+	at com.atguigu.java.RejectExecutionExceptionDemo.main(RejectExecutionExceptionDemo.java:26)
+
+
+     */
+public class RejectExecutionExceptionDemo {
+    public static void main(String[] args) {
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(
+                2,
+                5,
+                2L,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(3),
+                Executors.defaultThreadFactory(),
+                //new ThreadPoolExecutor.CallerRunsPolicy()//这个策略会把处理不了的任务交给调用者main,让main来处理
+                //new ThreadPoolExecutor.AbortPolicy()//这个策略，在线程任务处理不了的时候会报异常java.RejectedExecutionException
+                //new ThreadPoolExecutor.DiscardOldestPolicy()//这个策略不报异常，但会丢弃等待最久的任务
+                new ThreadPoolExecutor.DiscardPolicy()//这个线程不报异常，会默默的把无法处理的异常丢掉
+        );
+        try{
+            for (int i = 1; i <= 9; i++) {//当线程的数量超过最大线程数加阻塞队列的数，，就会报异常
+                poolExecutor.submit(() -> {
+                    System.out.println(Thread.currentThread().getName() + new Random().nextInt(3));
+                });
+                //TimeUnit.SECONDS.sleep(1);加延时，可以处理超过极限数的异常
+
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally{
+                poolExecutor.shutdown();
+            }
+
+
+
+    }
+
+
+}
