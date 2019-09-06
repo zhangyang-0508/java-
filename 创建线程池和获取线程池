@@ -1,0 +1,87 @@
+import java.util.Random;
+import java.util.concurrent.*;
+
+/**
+ * 自定义线程池
+ * 当自定义线程池容量不够时，报异常java.util.concurrent.RejectedExecutionException
+ * new ThreadPoolExecutor.AbortPolicy()当使用这个拒绝策略时，线程池容量不够的化会报异常java.util.concurrent.RejectedExecutionException
+ * new ThreadPoolExecutor.CallerRunsPolicy()当使用这个时，如果线程池容量不够时，会将处理不了的任务交给调用者，main
+ *new ThreadPoolExecutor.DiscardOldestPolicy()使用这个时，线程池不够时，会将等待最久的线程抛弃，然后把当前任务加入队列，再次尝试
+ *new ThreadPoolExecutor.DiscardPolicy()使用这个时，处理不了的任务会默认抛弃，不报异常
+ * 如果对于拒绝策略不够实用，可以自定义拒绝策略，自定义时，要实现这个接口RejectedExecutionHandler中的rejectedExecution(Runnable r, ThreadPoolExecutor executor)方法
+ */
+public class MyThreadPoolExecutor {
+    public static void main(String[] args) {
+       /* 0, Integer.MAX_VALUE,
+                60L, TimeUnit.SECONDS,
+                new SynchronousQueue<Runnable>()*/
+        ThreadPoolExecutor threadPool = new ThreadPoolExecutor(2,
+                5,
+                2l,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>(3),
+
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.DiscardPolicy());
+                try{
+                    for (int i = 1; i <=20; i++) {
+                        threadPool.submit(()->{
+                            System.out.println(Thread.currentThread().getName()+"\t 回执单"+ new Random().nextInt(5));
+                        });
+                    }
+                } catch (Exception e) {
+                           e.printStackTrace();
+                } finally{
+                    threadPool.shutdown();
+
+                }
+;
+        ExecutorService threadPool1 = Executors.newFixedThreadPool(5);
+       /* //一池五线程
+        ExecutorService threadPool = Executors.newFixedThreadPool(5);
+        try {
+            for (int i = 1; i <20; i++) {
+                threadPool.submit(()->{
+                    System.out.println(Thread.currentThread().getName()+"\t 办理业务回执单"+new Random().nextInt(5));
+                });
+                //TimeUnit.SECONDS.sleep(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }finally {
+            threadPool.shutdown();
+        }*/
+        //ExecutorService threadPool = Executors.newSingleThreadExecutor();
+
+       /* //一池1线程
+        ExecutorService threadPool = Executors.newSingleThreadExecutor();
+        try{
+            for (int i = 1; i <20; i++) {
+                threadPool.submit(()->{
+                    System.out.println(Thread.currentThread().getName()+"\t 办理业务回执单"+new Random().nextInt(5));
+                });
+                //TimeUnit.SECONDS.sleep(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }finally {
+            threadPool.shutdown();
+        }*/
+      //ExecutorService threadPool = Executors.newCachedThreadPool();
+       //一池n线程
+        /*ExecutorService threadPool = Executors.newCachedThreadPool();
+        try{
+            for (int i = 1; i <20; i++) {
+                threadPool.submit(()->{
+                    System.out.println(Thread.currentThread().getName()+"\t 办理业务回执单"+new Random().nextInt(5));
+                });
+                //TimeUnit.SECONDS.sleep(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }finally {
+            threadPool.shutdown();
+        }*/
+    }
+
+}
