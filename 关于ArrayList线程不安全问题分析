@@ -1,0 +1,31 @@
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class ArrayLlistNoSafeDemo {
+    public static void main(String[] args) {
+        //使用ArrayList这样会导致线程并发修改异常
+
+        /**
+        解决方案：1，换成Vector ，虽然保证了线程安全，但效率很低，因为底层的add方法上加了同步锁synchronized
+         2.使用Collections集合工具类封装Collections.synchronizedList(new ArrayList<>());
+         3.使用JUC处理线程并发的工具类中new CopyOnWriteArrayList<>()，写时复制技术，读写分离
+        4.解决HashMap线程不安全问题  new ConcurrentHashMap<>()
+
+         */
+        //Vector<Object> list = new Vector<>();
+       //List<String> list = new ArrayList<>();
+        //List<String> list = Collections.synchronizedList(new ArrayList<>());
+        //CopyOnWriteArrayList<Object> list = new CopyOnWriteArrayList<>();
+        //HashSet<Object> hashSet = new HashSet<>();
+        Map<String ,String > map = new ConcurrentHashMap<>();
+        //CopyOnWriteArraySet<Object> set = new CopyOnWriteArraySet<>();
+        for (int i = 1; i <=30 ; i++) {
+            new Thread(()->{
+                map.put(Thread.currentThread().getName(),UUID.randomUUID().toString().substring(0,8));
+                System.out.println(map);
+            },String.valueOf(i)).start();
+        }
+
+    }
+}
