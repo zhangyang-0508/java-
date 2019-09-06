@@ -1,0 +1,25 @@
+public class LockDemo {
+    //ReentrytLock 默认是非公平锁
+    //Lock lock = new ReentrantLock();
+//可重入锁（也叫递归锁）
+    /*
+    指的是同一线程外层函数获得锁之后，内层递归函数仍然获得该锁的代码
+    在同一个线程在外层方法获取锁的时候，在进入内层方法会自动获取锁
+    也即是说线程可以进入任何一个它已经拥有的锁所同步着的代码块
+    同步方法可以进入同步方法
+     */
+
+
+    public void test1(){
+        System.out.println(Thread.currentThread().getId()+"调用test2方法");
+    }
+    public void test2(){
+        System.out.println(Thread.currentThread().getId()+"test2方法");
+    }
+    public static void main(String[] args) {
+        while (true) {
+            byte[] bytes = new byte[8 * 1024 * 1024 * 1024];
+        }
+
+    }
+}
