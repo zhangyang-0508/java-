@@ -1,0 +1,37 @@
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * CyclicBarri做加法，加到一定程度才能执行主线程
+ * 通过CyclicBarri 我们可以在线程集齐规定数后结束
+ * 一个同步方法，允许一组线程相互等待，以达到一个共同的障碍点。
+ * 一个CyclicBarrier支持一个可选的Runnable命令，每个障碍点一次，在聚会的最后一个线程到达后，但在任何线程释放。这种障碍作用是有用的更新共享状态之前，任何一方继续
+ */
+public class CyclicBarrierDemo {
+    public static void main(String[] args) throws Exception{
+        CyclicBarrier cyclicBarrier = new CyclicBarrier(7, () -> {
+            try {
+                TimeUnit.SECONDS.sleep(2);
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            //CyclicBarrierDemo.class.getClassLoader();
+            System.out.println("...召唤神龙");
+        });
+        for (int i = 1; i<=7 ; i++) {
+            int finall = i ;
+            new Thread(()->{
+                try{
+
+                    System.out.println(Thread.currentThread().getName()+"\t 收集到第： " +finall +"龙珠");
+                    cyclicBarrier.await();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            },String.valueOf(i)).start();
+        }
+        //System.out.println("...召唤神龙");
+       
+    }
+}
