@@ -1,0 +1,56 @@
+//创建线程的四种方法
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+class Mythread extends Thread{
+    @Override
+    public void run() {
+        for (int i = 0; i < 10; i++) {
+            System.out.println(Thread.currentThread().getName()+"\t 继承的线程" + i);
+        }
+    }
+}
+class CallableDemo1<String> implements Callable {
+    @Override
+    public String call() throws Exception {
+        return (String) "java0508";
+    }
+}
+
+public class CreateThreadFourMethods {
+    public static void main(String[] args) {
+      /*  第一种获取线程的方法：1.通过继承Thread类，重写run 方法
+        Mythread mythread = new Mythread();
+        mythread.start();*/
+         //2.通过实现runnable接口
+     /* 第二种获取线程的方法：实现Runable接口   new Thread(()->{
+          for (int i =1; i <10 ; i++) {
+              System.out.println(Thread.currentThread().getName()+"\t  第二种线程"+new Random().nextInt(4));
+          }
+
+      },"自定义线程").start();*/
+     //第三种 获取线程的方法，new 线程需要传入FutureTask对象，这个对象new的时候要传入一个带有返回值的，实现Callable接口的对象
+        /*FutureTask<String> futureTask = new FutureTask<String>(()->{
+
+            System.out.println("实现了Callable接口");
+            return "返回值";
+        });
+        new Thread(futureTask,"线程的第三种方法").start();*/
+        //第四种获取线程的方法
+        ExecutorService threadPool = Executors.newFixedThreadPool(5);
+        //ExecutorService threadPool = Executors.newSingleThreadExecutor();
+        //ExecutorService threadPool = Executors.newCachedThreadPool();
+        for (int i = 1; i <=30 ; i++) {
+
+            threadPool.submit(()->{
+                System.out.println(Thread.currentThread().getName()+"这是获取线程得第四种方法1");
+            }
+
+
+            );
+        }
+    }
+
+}
