@@ -1,0 +1,68 @@
+<!--
+        4.4 foreach用法
+            SQL语句有时会使用IN关键字，例如id in {1,2,3}。可以使用id in #{ids}方式直接
+            获取值，但是这种写法不能防止SQL注入，想避免SQL注入就需要用#{}的方式，这时就需要
+            配合使用foreach标签来满足需求。
+
+            foreach可以对数组，map或实现了Iterable接口（如List、Set）的对象进行遍历。数组
+            在处理时会转换成List对象，因此foreach遍历的对象可以分为两大类：Iterable类型
+            和Map类型。
+    -->
+
+    <!--
+        4.4.1 foreach实现in集合
+            需求:
+                根据传入的用户id集合查询所有符合条件的用户。
+    -->
+    <select id="selectByIdList" resultType="tk.mybatis.simple.model.SysUser">
+        select id,
+          user_name userName,
+          user_password userPassword,
+          user_email userEmail,
+          user_info userInfo,
+          head_img headImg,
+          create_time createTime
+        from sys_user
+        where  id in
+        <!--
+            <foreach>包含以下属性：
+                collection：必填，值为要迭代循环的集合类型。这个属性值的情况有很多
+                item：变量名，值为从迭代对象中取出的每一个值
+                index：索引的属性名，在集合数组情况下值为当前索引值；当迭代对象是map时，这个值为map的key
+                open：整个循环内容的开头字符串
+                close：整个循环内容的结尾字符串
+                separator:每次循环的分隔符
+        -->
+        <foreach collection="list" open="(" close=")" separator=","
+                 item="id" index="i">
+            #{id}
+        </foreach>
+
+        <!--
+            collection的属性要如何设置？来看看MyBatis是如何处理这种类型的参数的：
+                1.只有一个数组参数或集合参数：
+                    当参数类型为集合类型的时候，默认会转换成Map类型，并添加一个key为collection的值
+                    如果参数类型是List类型，那么就继续添加一个key为list的值，这样，当collection="list"
+                    时，就能得到这个集合，并对它进行循环处理。
+
+                    当参数类型为数组类型的时候，也会转换成Map类型，默认的key为array。当采用如下方法使用
+                    数组参数时，就需要把foreach便签中的collection属性值设置为array
+                        List<SysUser> selectByList(Long[] idArray);
+
+                    上面是数组或集合类型的参数默认的名字。推荐使用@Param来指定参数的名字，这时collection
+                    就设置为通过@Param注解指定的名字。
+
+                2.有多个参数：
+                    有多个参数时，需要用@Param注解给每个参数指定一个名字~~~
+
+                3.参数是Map类型：
+                    使用map和使用@Param注解方式类似，将collection指定为Map中的key即可。
+                    如果要循环所传入的Map，推荐使用@Param注解指定名字，此时可将collection
+                    设置为指定的名字，如果不想指定名字，就使用默认值_parameter
+                        ——我选择用@Param指定名字。。。
+
+                4.参数是一个对象：
+                    这种情况下指定对象的属性名即可。当使用对象内层嵌套的对象时，使用属性.属性
+                    （集合和数组可以使用下标取值）的方式可以指定深层的属性值。
+        -->
+    </select>
