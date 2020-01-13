@@ -1,0 +1,22 @@
+消息队列的两种模式：
+一对一（消费者主动拉取数据，消息收到后消息清楚）
+发布/订阅（一对多，消费者消费数据之后不会清除消息）
+好处：解耦，可恢复性，缓冲，灵活性&峰值处理能力，异步通信
+
+kafka: 消息保存在topic,入口：producer  出口：Consumer  ,kafka集群每个实例称为broker ,无论kafka集群还是consumer都依赖于zookeeper集群都保存一些meta信息
+     每个topic中有leader 和follower ，保证高可用 ，同一个消费者可以消费多个topic,同一个组内的消费者不能同时消费同一个分区内的数据，
+     消费者组内每个消费者负责消费不同分区的数据，一个分区只能由一个组内消费者消费，消费者组之间互相不受影响，所有消费者都属于某个消费者组，即消费者组逻辑上
+     是一个订阅者，生产者和消费者面向的都是一个topic，一个topic,可以分为多个partition,每个partition是一个有序的队列，每个partition有多个segment，每个segmentyo
+     有两个文件组成，
+ 由于生产者生产的消息会不断追加到log文件末尾，为防止log文件过大导致数据定位效率低下，Kafka采取了分片和索引机制，将每个partition分为多个segment。每个segment对应两个文件——“.index”文件和“.log”文件。这些文件位于一个文件夹下，该文件夹的命名规则为：topic名称+分区序号。例如，first这个topic有三个分区，则其对应的文件夹为first-0,first-1,first-2。
+  
+  ack 应答机制 0，1，alo ，设置成alo 保证生产者消息不丢失
+  
+  
+  
+  
+ 
+ 
+ 
+
+ 
