@@ -1,0 +1,5 @@
+yml文件获取：类属性和配置文件属性映射
+@configurationProperties 告诉springboot 将本类中所有属性和配置文件中相关属性映射
+ prefix="" 配置文件中哪个下面的所有属性进行一一映射
+ 只有这个组件时容器中的组件，才能容器提供这个功能，加@conmponet
+导入配置文件处理器spring-boot-configuration-processor  配置文件进行绑定就会有提示
