@@ -40,4 +40,13 @@ spring:
 在配置文件中指定 Spring.profile.active = dev
 
 命令行指定Java -jar spring-boot-02-config-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev或者虚拟机参数 -Dspring.profie.active=dev
-17课时
+
+配置文件的加载位置
+springboot启动会扫描以下位置的application.properties或者application.yml文件作为springboot的默认配置文件
+-file:/config/
+-file:/
+-classpath:/config/
+-classpath:/
+以上是按照优先级从高到低的顺序，所有位置的文件都会被加载，高优先级的内容会覆盖低优先级的配置内容，可以通过spring.config.location来改变默认配置
+springboot都会加载这四个位置的配置文件，互补，可以通过spring.config.location来该表配置文件的路径
+server.servlet.context-path=/boot02 在properties文件中可以配置项目的访问路径
