@@ -94,6 +94,164 @@ Singleton单例设计模式：  某个类在整个系统种只能有一个实例
    非静态代码块的执行： 每次创建实例对象都会执行
    方法的调用规则：调用一次执行一次
    
+ Spring Bean的作用域有什么区别：
+        bean的作用域可以通过scop属性来指定bean的作用域，
+          singleton:默认值，当IOC容器-创建就会创建bean的实例，而且是单例的，每次得到的都是同一个
+          prototype:原型的，当IOC容器-创建就不再实例化该bean，每次调用getBean()方法时再实例化该Bean
+          request:每次请求实例化一个bean
+          session:在一次会话中共享一个bean
+ 
+Spring支持的常用数据库事务传播属性和事务隔离级别？
+   事务的属性：
+      1，propagation: 用来设置事务的传播行为
+          事务的传播行为：一个方法运行在了一个开启了事务的方法中，当前方法是使用原来的事务还是开启一个新的事务
+            -Propagation.REQUIRED  默认值，使用原来的事务
+            -Propagation.REQUIRES_NEW   将原来的事务挂起，开启一个新的事务，相当于互不影响
+      2，isolation 用来设置事物的隔离级别
+         Isolation.REPEATABLE_READ   可重复读，Mysql默认的隔离级别
+         Isolation.READ_COMMITTED   读已提交，Oracle默认的隔离级别，开发时通常使用的隔离级别
+ 
+ 数据库事务并发问题：
+        1）读未提交    脏读
+        2）第一次读的值和第二次读的值不同    不可重复读
+        3）第一次读的行和第二次读的行不同    幻读
+ 一个事务与其他食物隔离的程度称为隔离级别,不同的隔离级别对应不同的干扰程度，隔离级别越高，数据一致性就越好，但并发性越弱
+   1）读未提交  READ  UNCOMMITTED       有脏读，有不可重复读，有幻读             oracle不支持，mysql支持
+   2)读已提交   READ COMMITTED          无脏读，有不可重复读，有幻读             oracle默认，mysql支持
+   3)可重复度    REPEATATABLE READ      无脏读，无不可重复度，有幻读             oracle不支持，mysql默认
+   4)串行化     SERIALIZABLE            无脏读  无不可重复读， 无幻读            oracle支持，mysql支持
+   
+  SpringMVC中如何解决POST请求中文乱码问题，GET又如何处理？ 
+     解决post请求乱码：web.xml 加过滤器，CharacterEncodingFilter,encoding设置为UTF-8
+     解决get请求乱码： 服务器的server.xml,在Connector标签上加属性，URIEncoding="UTF-8"
+ 
+ 简单的谈一下springmvc的工作流程
+    处理模型数据方式1：将方法的返回值设置为ModelAndView
+    处理模型数据方式2：方法的返回值仍是String类型，在方法的入参中传入Map,Model,或者ModelMap
+    不管将处理器方法的返回值设置为ModelAndView还是方法的入参中传入Map,Model或者ModelMap ，SpringMVC都会转换为一个ModelAndView对象
+    
+ MyBatis中当实体类中的属性名和表中字段名不一样怎么办？
+    解决方案：
+          1，写sql语句时，起别名
+          2，在Mybatis全局配置文件中开启驼峰命名规则
+          3，在Mapper映射文件中使用resultMap来自定义映射规则
+          
+ linus命令centos7：
+     systemctl status firewald  查看防火墙
+     systemctl start 服务名
+     systemctl restart 服务名
+     systemctl stop 服务名
+     systemctl reload 服务名
+     systemctl status 服务名
+   查看服务的命令
+      systemctl  list-unit files
+      systemctl  --type service
+   通过systemctl 命令设置自启动
+      自启动systemctl enable service_name
+      不自启动  systemctl disable service_name
+git命令：
+  创建/切换分支：
+     一步完成 git  checkout -b <分支名>
+  合并分支：
+     先切换到主干， git checkout  master
+                   git merge <分支名>
+  删除分支：
+     先切换到主干   git   checkout  master
+                    git   branch  -D  <分支名>
+ 
+Redis 持久化
+  RDB(Redis DataBase)  
+      快照的形式保存
+     优点：节省磁盘空间，恢复速度块
+     缺点： 虽然Redis在fork时使用了写时拷贝技术，但是如果数据庞大还是比较消耗性能，在备份周期在一定间隔时间做一个备份，
+             所以如果Redis意外down掉的话，就会丢失最后一次快照后的所有修改
+  AOP(Append Of File)
+     以日志的形式记录每个写操作
+     优点：备份机制更稳健，丢失数据概率更低
+            可读的日志文本，通过AOF稳健，可以处理误操作
+      缺点：比起RDB占用更多的磁盘空间
+            恢复备份速度要慢
+            每次读写都同步的话，有一定的性能压力
+            存在个别BUg，造成恢复不能
+            
+ Mysql是什么时候建索引？
+     哪些情况需要创建索引：1，主键自动建立唯一索引
+               2，频繁作为查询条件的字段应该创建索引
+               3，查询中与其他表关联的字段，外键关系建立索引
+               4，单键/组合索引的选择问题，组合索引性价比更高
+               5，查询中排序的字段，排序字段若通过索引去访问将大大提高排序速度
+               6，查询中统计或分组字段 分组大于排序 
+     哪些情况不要创建索引：
+               1，表记录太少
+               2，经常增删改的表或者字段
+               3，Where条件里用不到的字段不创建索引
+               4，过滤性不好的不适合索引
+               
+ jvM垃圾回收机制，GC发生在JVM哪部分，有几种GC，他们的算法是什么？
+      GC（分代收集算法）                               引用计数法（淘汰，不能解决循环引用）
+        次数上频繁收集的Young区，MinorGC               复制算法
+        次数上较少收集Old区 ，  Full GC                标记清除，标记压缩
+        基本不动Perm区
+        
+  redis在项目中的使用场景：
+    数据类型 使用场景
+    String  比如说，我向知道什么时候封锁一个ip地址，Incrby命令
+    Hash    存储用户信息（id，name,age)
+             Hset(key.field,value)不建议使用String类型
+    List    实现最新消息的排行，还可以利用List的push命令，将任务存在list集合中，同时使用另一个命令，将任务从集合中取出【pop】
+            Redis-lsit数据类型来模拟消息队列，【电商中的秒杀就可以采用这种方式来完成一个秒杀活动】
+    Set     特殊之处：可以自动排重，比如微博中将每个人的好友存在集合（Set）中，这样求两个人的共同好友的操作，我们只需要求交集即可    
+    Zset    以某一个条件为权重，进行排序，京东：商品详情的时候，都会有一个综合排名，还可以按照价格进行排名
+    
+ Elasticsearch和solr的区别
+   背景：他们都是基于Lucene搜索服务器基础之上开发，一款优秀的，高性能的企业级搜索服务器
+                           【是因为他们都是基于分词技术构建的倒排索引的方式进行查询】
+    开发语言：java语言开发
+    诞生时间： 
+      solr:2004
+      ES:2020
+      es更新【功能越强大】
+   区别：
+     1，当实时建立索引的时候，solr会产生io阻塞，而es则不会，es查询性能要高于solr
+     2,在不断动态添加数据的zooke时候，solr的检索效率会变得低下，而es则没有什么变化
+     3，solr利用zookeeper进行分布式管理，而es自身带有分布式系统管理功能，Solr一般都是要部署到web服务器上，比如tomcate，启动tomcat得时候需要
+        配置tomcat与solr得关联[Solr得本质，是一个动态web项目]
+     4，solr支持更过格式得属【xml,json,csv等】，而es仅支持json文件格式
+     5，Solr是传统搜索应用得有力解决方案，但是es更适用于新兴得实时搜索应用
+       a)单纯得对已有数据进行检索得是侯，solr效率更高，高于es
+     6,solr官网提供得功能更多，而es本身更注重于核心功能，高级功能有第三方插件
+     
+ 单点登录实现过程：
+   单点登录： 一处登录，多处使用
+    前提：单点登录多使用在分布式系统中
+ 
+ 消息队列在项目中得使用：
+   背景;在分布式系统中是如何处理高并发得
+        由于在高并发的环境下，来不及同步处理用户发送的请求，则会导致请求发生阻塞，比如说，大量的insert  update之类得请求同时到达数据库Mysql
+        直接导致无数的行锁表锁，甚至会导致请求堆积很多从而触发too many  connections错误，使用消息队列可以解决（异步通信）
+   为什么要使用消息队列：
+        1，通过异步处理提高系统性能（削峰，减少相应所需时间）
+        2，降低系统耦合性
+ 
+ 
+ 
+ 消息队列得弊端：
+      消息得不确定性：延迟队列，轮询技术来解决该问题
+      activemq
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  
  
