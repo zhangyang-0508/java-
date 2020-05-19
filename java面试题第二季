@@ -1,4 +1,4 @@
-1，谈谈对volatitle关键字的理解
+1，面试题：谈谈对volatitle关键字的理解
 volatitle：是java虚拟机提供的轻量级的同步机制
   1, 保证可见性
   2，不保证原子性
@@ -6,7 +6,7 @@ volatitle：是java虚拟机提供的轻量级的同步机制
   多线程情况下，普通的变量是没有可见性的，加了volatile关键字可以保证可见性
 如何解决原子性：加sync  ,使用juc下的AtomicInterger(底层是CAS)
 
-2,JMM（java内存模型）你谈谈？
+2,面试题：JMM（java内存模型）你谈谈？
   硬盘<内存<cpu
    主内存：电脑内存，比如8g,16g
    自己的工作内存：比如每个线程从主内存中拷贝到各自线程的工作内存
@@ -43,16 +43,72 @@ volatitle：是java虚拟机提供的轻量级的同步机制
     都能读取到这些数据的最新版本
     对volatile变量进行写操作时，会在写操作后加入一条store屏障指令，将工作内存中的共享变量值刷新回主内存中
     对volatile变量进行读操作时，会在读操作前加入一条load屏障指令，从主内存中读取共享变量
+ volatile应用：
+   单机版单例模式：
+        private static  SingletonDemo instance = null;
+    private  SingletonDemo(){
+        System.out.println(Thread.currentThread().getName()+"\t 我是构造方法SingletonDemo");
+    }
+    public  static SingletonDemo  getSingletonDemo(){
+        if (instance==null){
+            instance=new SingletonDemo();
+        }
+        return instance;
+    }
+  多线程下单例模式：DCL+volatile
+     private static volatile  SingletonDemo instance = null;
+    private  SingletonDemo(){
+        System.out.println(Thread.currentThread().getName()+"\t 我是构造方法SingletonDemo");
+    }
+    //DCL(double check lock双端检索机制)
+    public  static SingletonDemo  getSingletonDemo(){
+        if (instance==null){
+            {
+                synchronized(SingletonDemo.class){
+                    if (instance==null){
+                        instance=new SingletonDemo();
+                    }
+                }
+            }
+        }
+        return instance;
+    }
+
+3. 面试题：CAS 是什么？ compareAndSwap 缩写  unsaf类（rd.jar包下的）+CAS思想（自旋）
+       含义：比较并交换,比较当前工作内存中得值和主内存中得值，如果相同则执行规定操作，否则继续比较直到主内存和工作中得值一致为止
+       应用：CAS有三个操作数，内存值V，旧得预期值A，要修改得更新值B
+             当且仅当预期值A和内存值V相同时，将内存值V修改为B，否则什么都不做
        
-       
-       
-       
-       
-       
-       
-       
-       
-       
+     cas底层原理：如果知道谈谈unsafe类  
+    1）Unsafe: 是CAS的核心类，由于java方法无法直接访问底层系统，需要通过本地方法（native）方法来访问，Unsafe相当于一个后门，基于该类可以直接操作
+       特定内存的数据，Unsafe类存在于sun.misc包中，其内部方法操作可以像C的指针一样直接操作内存，因为java中CAS操作的执行依赖于Unsafe类的方法
+    注意：Unsafe类中的所有方法都是native修改的，也就是说Unsafe类中的方法都是直接调用操作系统底层资源执行相应任务
+    2）变量valueOffset，表示该变量值在内存中的偏移地址，因为Unsafe就是根据内存偏移地址获取数据的
+    3）变量value用volatitle修饰，保证了多线程之间的内存可见性
+       CAS的全称为Compare-And-Swap，它是一条CPU并发原语
+       它的功能是判断内存某个位置的值是否为预期值，如果是则更改为新的值，这个过程是原子的
+       CAS并发原语体现在JAVA语言中就是sun.misc.Unsafe类中的各个方法，调用UnSafe类中的CAS方法，JVM会帮我们实现出CAS汇编指令。它是一种完全依赖于硬件的
+       功能，通过它实现了原子操作。再次强调，由于CAS是一种系统原语，原语属于操作系统用于范畴，是由若干条指令组成，用于完成某个功能的一个过程，并且原语
+       的执行必须是连续的，在执行过程总不允许被中断，也就是说CAS是一条CPU的原子指令，不会造成所谓的数据不一致问题
+       unsafe.getAndAddInt(Object var1,long var2,int var4)
+       var1 AtomicInteger对象本身
+       var2 该对象值得引用地址
+       var4 需要变动得数量
+       var5 是用过var1 var2找出得主内存中得真实的值
+       用该对象当前的值和var5比较如果相同，更新var5+var4并且返回true，如果不容，继续取值然后再比较，直到更新完成
+   CAS缺点：
+        1，循环时间长，开销大（getAndAddInt方法执行时，有个do while，如果CAS失败，会一直进行尝试，如果CAS长时间一直不成功，可能会给CPU带来很大的开销）
+        2，只能保证一个共享变量的原子操作（当对一个变量执行操作时，我们可以使用循环CAS的方式来保证原子操作，
+                                        但是对多个共享变量操作时，循环CAS就无法保证操作的原子性，这个时候就可以用锁来保证原子性）
+        3.引出来ABA问题
+   
+AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原子引用更新-->如何规避ABA问题
+ 4 面试题：原子类AtomicInterger的ABA问题谈谈，原子更新引用知道吗？    
+       CAS会导致“ABA问题”
+       CAS算法实现一个重要前提需要取出内存中某时刻的数据并在当下时刻比较并替换，那么在这个时间差会导致数据的变化，比如说一个线程one从内存位置V
+            取出A，这时候另一个线程two，也是从内存中取出A，并且two进行了一些操作将值变成了B，然后线程two又将V位置的数据变成A，这时候one进行CAS
+            操作发现内存中仍是A，然后线程one操作成功
+        尽管线程one的CAS操作成功，但是不代表这个过程就是没有问题的
        
        
        
