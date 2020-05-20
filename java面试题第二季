@@ -320,15 +320,47 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
                         }, String.valueOf(i)).start();
 
                     }
-       
-       
-       
-       
-       
-       
-       
-       
-       
+    CountDownLatch: 让一些线程阻塞直到另一些线程完成一系列操作后才被唤醒（班长锁门）
+                    CountDownLatch主要有两个方法，当一个或多个线程调用await方法时，调用线程会被阻塞，其它线程调用countDown方法会将计数器减一
+                    （调用countDown方法的线程不会阻塞）当计数器的值变为零时，因调用await方法被阻塞的线程会被唤醒，继续执行
+    CyclicBarrier: CyclicBarrier的字面意思是可循环（Cyclic)使用的屏障（Barrier)，它要做的事情是让一组线程达到一个屏障（也可以叫同步点）时被阻塞
+                  直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续干活，线程进入屏障通过CyclicBarrier的await()方法（人到齐开会/收集七龙珠）
+    Semaphore: 信号量主要用于两个目的，一个是用于多个共享资源的互斥使用，另一个用于并发线程数的控制（争车位）
+面试题：阻塞队列知道吗？
+   队列+阻塞队列：
+      当阻塞队列是空的时候，从队列种获取元素的操作将会被阻塞
+      当阻塞队列是满的时候，往队列里添加元素的操作会被阻塞
+    在多线程领域:所谓阻塞，在某些情况下会挂起线程（即阻塞），一旦条件满足被挂起的线程又会自动被唤醒
+     为什么需要BlickingQueue
+       好处是我们不需要关系什么时候需要阻塞线程，什么时候需要唤醒线程，因为着一切BlockingQueue都给你包办了
+       在concurrent包发布以前，多线程环境下，我们每个程序员都必须去自己控制这些细节，尤其还要兼顾效率和线程安全，而这会给我们的程序带来不小的复杂度
+      BlockingQueue是Collection下的接口
+         #ArrayBlockingQueue:是一个基于数组结构的有界阻塞队列，此队列FIFO（先进先出）原则对元素进行排序
+         #linkedBlockingQueue:一个基于链表结构的阻塞队列（大小默认值为Integer.MAX_VALUE）阻塞队列，此队按照FIFO（先进先出）排序元素，吞吐量通常要高于ArrayBlockingQueue
+         #SynchronousQueue:一个不存储元素的阻塞队列，每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态，吞吐量通常要高，每一个put操作，总要等待一个take操作
+         PriorityBlockingQueue：支持优先级排序的无界阻塞队列                                                                                                                               
+         DelayQueue:使用优先级队列实现的延迟无界阻塞队列
+         LinkedTransferQueue:由链表结构组成的无界阻塞队列
+         LinkedBlockingDeque:由链表结构组成的双向阻塞队列
+       BlockingQueue的核心方法：
+        方法类型    抛出异常     特殊值     阻塞     超时
+        插入        add(e)      offer(e)   put(e)   offer(e,time,unit)
+        移除        remove()     poll()    take()   poll(time,unit)
+        检查        element()    peek()    不可用   不可用
+        抛出异常 ：当阻塞队列满时，再将队列里add插入元素会抛出IllegalStateException：Queue full
+                   当阻塞队列空时，再往队列里remove,移除元素会抛出NoSuchElementException
+        特殊值： 插入方法，成功为true,失败false
+                 移除方法，成功返回处队列的元素，队列里面没有就返回null
+        一直阻塞：当阻塞队列满时，生产者线程继续往队列里put元素，队列会一直阻塞生产线程直到put数据or相应中断退出
+                 当阻塞队列空时，消费者线程试图从队列里take元素，队列会一直阻塞消费者线程直到队列可用
+        超时退出：当阻塞队列满时，队列会阻塞生产者线程一定时间，超过后限时后生产者线程会退出       
+   阻塞队列用在哪里？
+      生产者消费之模式
+             （多线程判断要用while判断）
+             
+             
+      线程池
+      消息中间件
        
        
        
