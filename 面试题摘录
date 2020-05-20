@@ -16,3 +16,24 @@
         Vector<String> list = new Vector<>();
         List<String> list1 = Collections.synchronizedList(new ArrayList<>());
     优化建议（同样的错误不犯第二次）
+4问题：Synchronized和lock有什么区别？用新的lock有什么好处？举例说明
+  1，原始构成
+    Synchronized 是关键字属于JVM层面
+        monitorenter(底层是通过monitor对象来完成，其实wait/notify等方法也依赖于monitor对象只有在同步块或方法种才能调用wait/notify等方法
+        monitorexit
+    Lock 是具体类（java.util.concurrent.locks.lock)是api层次的锁
+ 2，使用方法
+    Synchronized 不需要用户去手动释放锁，当Synchronized代码执行完后，系统会自动让线程释放对锁的占用
+    ReentrantLock则需要用用户手动释放锁，若没有主动释放锁，就有可能导致出现死锁现象
+    需要lock()和unlock()方法配合try/finally语句块来完成
+  3，等待是否可中断
+      Synchronized不可中断，除非抛出异常或者正常运行完成
+      ReentranLock可中断， 1，设置超时方法trylock(long timeout,TimeUnit unit)
+                           2,lockInterruptibly()放代码块种调用interrupt()方法可中断
+  4，加锁是否公平
+     Synchronized 非公平锁
+     ReentrantLock 两者都可以，默认非公平锁，构造方法可以传入boolean值，true为公平锁，false为非公平锁
+  5，锁绑定多个Condition
+     Synchronized没有
+     ReentrantLock用来实现分组唤醒需要唤醒的线程们，可以精确唤醒，而不是像Synchronized要么随机唤醒一个要么唤醒全部线程
+     
