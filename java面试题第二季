@@ -168,7 +168,7 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
             System.out.println(Thread.currentThread().getName()+"\t当前最新实际版本号"+atomicStampedReference.getReference());
         },"t4").start();
     }
-  5面试题：集合类的不安全问题 ,如果是多线程情况下，会报java 
+  5面试题：集合类的不安全问题 ,如果是多线程情况下，会报java并发修改异常 
     ArrayList   当new ArrayList的时候默认容量为10，Arraylist的add方法没有加锁，所以线程不安全，vector的add方法加有synchronized，所以线程安全
            底层是object类型的数组
            1，new Vector()
