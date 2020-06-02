@@ -1,1 +1,31 @@
+1,引入SpringSecurity
+2,编写SpringSecurity的配置类   ctrl+o打开可以重写的方法
+   @EnableWebSecurity  extends WebSecurityConfigureAdapter
+3,控制请求的访问权限
+@EnableWebSecurity
+public class NewConfig extends WebSecurityConfigurerAdapter {
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        //定制请求的授权规则
+        http.authorizeRequests().antMatchers("/").permitAll()
+                .antMatchers("/level1/**").hasRole("vip1")
+                .antMatchers("/level2/**").hasRole("vip2")
+                .antMatchers("/level3/**").hasRole("vip3");
+        //开启自动配置的登录功能，效果：如果没有权限就会来到登录界面
+        http.formLogin();
+        //1，/login来到登录页
+        //2，重定向到/login?error表示登录失败
+        http.logout();
+        //1,访问/logout 表示注销登录，清空session
+        //2,注销成功会返回/login?logout页面
+    }
 
+//定义认证规则
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        //super.configure(auth);
+        auth.inMemoryAuthentication().withUser("zhangsan").password("123456").roles("vip1","vip2")
+                .and().withUser("lisi").password("123456").roles("vip2","vip3")
+                ;
+    }
+}
