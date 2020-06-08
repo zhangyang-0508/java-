@@ -433,8 +433,8 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
       线程池
       消息中间件
        
-       
-       
+    callable接口有返回值，runable接口没有返回值，futureTask是有有实现callable接口的构造入参，和实现runable接口
+      多个线程抢一个futureTask，只会调用一此futureTask 
        
        
        
