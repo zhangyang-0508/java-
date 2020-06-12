@@ -579,7 +579,32 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
                                                         公式： java -XX:+PrintFlagsFinal -version
                                                      PrintFlagsFinal举例，运行java命令的同时打印出参数   java -XX:+PrintFlagsFinal -Xss128k 运行java类的名字
                               -XX：+PrintCommandLineFlags   公式： java -XX:+PrintCommandLineFlags -version  主要查看GC的算法
-       
+               System.out.println(Runtime.getRuntime().availableProcessors());  查看本机线程数
+               System.out.println(Runtime.getRuntime().maxMemory());            java虚拟机试图使用的最大内存量
+               System.out.println(Runtime.getRuntime().totalMemory());           java虚拟机中的内存总量
+               
+               -XX:+UseSerialGC  串行垃圾回收器
+               -XX:+UseParallereGC   并行垃圾回收器
+              
+   平时工作用过的jvm常用基本配置参数有哪些？
+                 -Xms   : 初始大小内存，默认为物理内存的1/64，等价于-XX:InitialHeapSize
+                 -Xmx   :最大分配内存，默认为物理内存的1/4，等价于-XX:MaxHeapSize
+                 -Xss   :设置单个线程栈的大小，一般默认为512k~1024k，等价于-XX:ThreadStackSize
+                 -Xmm   :设置年轻代的大小
+                 -XX:MetaspaceSize 设置元空间大小      元空间的本质和永久代类似，都是对JVM规范中方法区的实现，不过元空间与永久代之间最大的区别在于：元空间并不在虚拟机中，而是使用本地内存  因此默认情况下(21m)，元空间的大小仅受本地内存限制
+                                   -Xms10m -Xmx10m -XX:MetaspaceSize=1024m -XX:+PrintFlagsFinal                    
+                                  经典配置：-Xms128m -Xmx4096m -Xss1024k -XX：MetaspaceSize=512m -XX:+PrintCommandLineFlags -XX:+PrintGCDetails -XX:+UseSerialGC                         
+                 -XX:PrintGCDetails   输出详细GC收集日志信息
+                                      GC
+                                      FullGC  规律：名称 GC前内存占用  GC后内存占用  该区内存总大小
+                 -XX:SurvivorRatio    设置新生代中eden和SO/S1空间的比例
+                                      默认：  -XX:SurvivorRatio=8,Eden:SO:S1=8:1:1
+                                      假如：-XX:SurvivorRatio=4,Eden:SO:S1=4:1:1
+                                           SurvivorRatio 值就是设置eden区的比例占多少，SO/S1相同
+                                      参数配置：-XX:+PrintGCDetails -XX:+UserSerialGC -Xms10m -Xmx10m -XX:SurvivorRatio=4
+                 -XX:NewRatio
+                 -XX:MaxTenuringThreshold
+              
        
        
        
