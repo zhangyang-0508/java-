@@ -538,14 +538,113 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
   jvm垃圾回收的时候如何确定垃圾？是否知道什么是GC Roots
      什么是垃圾？ 简单的说就是内存中已经不再被使用到的空间就是垃圾
      要进行垃圾回收，如何判断一个对象是否可以被回收？
-         引用计数发：java中引用和对象是有关联的，如果要操作对象则必须要引用进行
+         引用计数法：java中引用和对象是有关联的，如果要操作对象则必须要引用进行
                    因此，很显然一个简单的办法就是通过引用计数来判断一个对象是否可以回收，简单说，给对象添加一个引用计数器
                         每当有一个地方引用它，计数器值加1
                         每当有一个引用失效时，计数器值减1
                    任何时刻计数器值为零的对象就是不可能再被使用的，那么这个对象就是可回收对象
                    那为什么主流的java虚拟机里面都没有选用这种算法？其中最主要的原因是很难解决对象之间相互循环引用的问题（该算法存在但目前无人用了）
          枚举根节点做可达性分析（根搜索路径）
-     
+            为了解决引用计数法的循环引用问题，java使用了可达性分析的方法
+              所谓‘GC roots’或者说tracing GC的‘根集合’就是一组必须活跃的引用
+              基本思路就是通过一系列名为'GC Roots'的对象作为起始点，从这个被称为GC Roots的对象开始向下搜索，如果一个对象到GC Roots没有任何引用链相连时，则说明此对象不可用，
+                  也即给定一个集合的引用作为根出发，通过引用关系遍历对象图，能被遍历到的（可到达的）对象就被判定为存活，没有遍历到的就自然被判定死亡                                                                                                                                    
+           哪些可以作为GC Roots的对象?
+                虚拟机栈（栈帧中的局部变量区，也叫局部变量表）中引用的对象
+                方法区中类类静态属性引用的对象
+                方法区中常量引用的对象
+                本地方法栈中JNI(Native方法）引用的对象
+    jvm调优和参数配置，如何盘点查看JVM系统默认值 
+         jvm的参数类型： 标配参数    -version   -help    java -showversion
+                         x参数（了解） -Xint 解释执行
+                                       -Xcomp  第一次使用就编译成本地代码
+                                       -Xmixed  混合模式
+                         xx参数 Boolean类型    公式：   -xx: +或者-某个属性值
+                                                            +表示开启  - 表示关闭
+                                              case:是否打印GC收集细节  -XX:-PrintGCDetails     -XX:+PrintGCDetails
+                                                   是否使用串行垃圾回收器 -XX:-UseSerialGC      -XX:+UserSerialGC
+                                kv设值类型    公式:  -XX:属性key=属性value
+                                              case:  -XX:MetaspaceSize=128m  （默认值21M左右）   -XX:MaxTenuringThreshold=15（对象被复制的次数默认15）
+                                jinfo例子：   jsp -l 查看进程号      jinfo -flag PrintGCDetails 进程号  查看运行程序的配置
+                        查看当前运行程序的配置： 公式：  jinfo -flags 配置项进程编号          jinfo -flags 5988
+                                                 case1: jinfo -flag InitialHeapSize 8372  初始化堆大小
+                                          
+                        两个经典参数： -Xms等价于-XX:InitialHeapSize（默认物理内存的64分之一）                 -Xmx等价于-XX:MaxHeapSize(默认物理内存的四分之一)
+                                       Xss初始栈空间大小
+                        
+        盘点家底查看jvm默认值:  -XX:+PrintFlagsInitial   主要查看初始默认
+                                                         公式： java -XX:+PrintFlagsInitial -version
+                                                                java -XX:+PrintFlagsInitial
+                               -XX: +PrintFlagsFinal    主要查看修改更新  =代表没有修改过，  ：= 代表jvm修改过或者人为修改过的
+                                                        公式： java -XX:+PrintFlagsFinal -version
+                                                     PrintFlagsFinal举例，运行java命令的同时打印出参数   java -XX:+PrintFlagsFinal -Xss128k 运行java类的名字
+                              -XX：+PrintCommandLineFlags   公式： java -XX:+PrintCommandLineFlags -version  主要查看GC的算法
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
        
        
        
