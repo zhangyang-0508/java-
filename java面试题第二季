@@ -823,9 +823,25 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
        网络io：ifstat
             默认本地没有，下载ifsta
             查看网络io
-     
-       
-       
+ 假如生产环境出现CPU占用过高，请谈谈你的分析思路？
+     结合linux和jdk命令一块分析
+     案例步骤：1，先用top命令找出CPU占比最高的
+               2，ps -ef或者jps进一步定位，得知是一个怎样的后台程序给我们惹事jsp -l
+               3，定位到具体线程或者代码  
+                    ps -mp 进程 -o THREAD,tid,time
+                    参数解释：-m 显示所有的线程
+                              -p pid进程使用CPU的时间
+                              -o 该参数后是用户自定义格式
+               4，将需要的线程id转换为16进制格式（英文小写格式）
+                       print "%x\n" 有问题的线程的线程ID
+               5，jstack 进程ID | grep tid（16进制线程id小写英文） -A60
+对于jdk自带的jvm监控和性能分析工具用过哪些？一般你是怎么用的？       
+       jps(虚拟机进程状况工具)
+       jinfo(java 配置信息工具)
+       jmap (内存影像工具)  生成java应用程序的堆快照和对象的统计信息
+              映射堆快照   jmap -heap 进程id
+              抓取堆内存  生成hprof文件并下载到本地
+       jstat (统计信息监视工具)
        
        
        
