@@ -854,7 +854,19 @@ github常用词含义：
               xxx in:name  项目名包含xxx的
               xxx in:descrition 项目描述包含xxx的
               xxx in:readme 项目的readme文件中包含xxx的
-       
+    stars或fork数量关键词区查找 
+       公式：    xxx关键词 stars 通配符   :>或者:>=
+                 区间范围数字  数字1..数字2
+      查找stars数大于等于5000的springboot项目
+        springboot stars:>=5000
+      查找forks数大于500的springcloud项目
+         springboot forks:>500
+      查找forKs数在100到200之间，并且stars数在80到100之间的spirngboot项目
+         springboot forks:100..200 stars:80..100
+    awesome加强搜索
+    高亮显示某一行代码
+    项目内搜索
+    搜索某个地区中的大佬
        
        
        
