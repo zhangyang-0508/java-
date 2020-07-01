@@ -843,10 +843,17 @@ AtomicInteger--> CAS-->Unsafe-->CAS底层思想-->（CAS缺点引出）ABA-->原
               抓取堆内存  生成hprof文件并下载到本地
        jstat (统计信息监视工具)
        
-       
-       
-       
-       
+github常用词含义：
+      watch：会持续收到该项目的动态
+      fork：复制某个项目到自己的Github仓库中
+      star: 可以理解为点赞
+      clone:将项目下载到本地
+      follow:关注你感兴趣的作者，会收到他们的动态
+   in关键词： 公式： xxx关键字  in:name  或者  description或readme
+       seckill 秒杀  
+              xxx in:name  项目名包含xxx的
+              xxx in:descrition 项目描述包含xxx的
+              xxx in:readme 项目的readme文件中包含xxx的
        
        
        
