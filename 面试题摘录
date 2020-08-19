@@ -139,7 +139,68 @@
             }
         }
 
-  
+  生产者消费者模式：
+             public class ProConsumer {
+            private  volatile  boolean FLAG = true;
+            private AtomicInteger atomicInteger = new AtomicInteger();
+            private BlockingQueue<String> blockingQueue =null ;
+
+            public  ProConsumer(BlockingQueue<String> blockingQueue){
+                this.blockingQueue = blockingQueue;
+            }
+            public void pro(){
+                String data = null;
+                while (FLAG){
+                    data=atomicInteger.getAndIncrement()+"";
+                    boolean offer = false;
+                    try {
+                        offer = blockingQueue.offer(data,2, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    if (offer){
+                        System.out.println(Thread.currentThread().getName()+"\t"+data+"插入队列成功");
+                    }else {
+                        System.out.println(Thread.currentThread().getName()+"\t"+data+"插入队列失败");
+                    }
+                }
+            }
+            public void consume() throws InterruptedException {
+                String result = null;
+                while (FLAG){
+                    result = blockingQueue.poll(2L, TimeUnit.SECONDS);
+                    if (null==result||result.equalsIgnoreCase("")){
+                        FLAG=false;
+                        System.out.println(Thread.currentThread().getName()+"\t超过两秒没收到消息，消费者退出");
+                    }
+                    return;
+                }
+                System.out.println(Thread.currentThread().getName()+"\t"+result+"成功");
+            }
+            public void stop(){
+                this.FLAG=false;
+
+            }
+
+            public static void main(String[] args) throws Exception {
+                ProConsumer proConsumer = new ProConsumer(new ArrayBlockingQueue<>(10));
+                new Thread(()->{
+                    proConsumer.pro();
+                },"生产者线程").start();
+                new Thread(()->{
+                    try {
+                        proConsumer.consume();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                },"消费者线程").start();
+
+                TimeUnit.SECONDS.sleep(5);
+                proConsumer.stop();
+
+            }
+
+        }
   
   
   
