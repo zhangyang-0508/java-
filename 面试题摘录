@@ -36,4 +36,140 @@
   5，锁绑定多个Condition
      Synchronized没有
      ReentrantLock用来实现分组唤醒需要唤醒的线程们，可以精确唤醒，而不是像Synchronized要么随机唤醒一个要么唤醒全部线程
+  6,定制线程通信
+                //定制线程通信
+        public class ThreadResource {
+            private int flag = 1;//1  2  3
+          private Lock lock =   new ReentrantLock();
+            private Condition c1 = lock.newCondition();
+            private Condition c2 = lock.newCondition();
+            private Condition c3 = lock.newCondition();
+
+            public void print5(){
+                lock.lock();
+               try {
+                   while (flag!=1){
+                       c1.await();
+                   }
+                   for (int i = 0; i < 5; i++) {
+                       System.out.println(Thread.currentThread().getName()+"\t"+"A");
+                   }
+                   flag=2;
+                   c2.signal();
+               }catch (Exception e){
+                   e.printStackTrace();
+               }finally {
+                lock.unlock();
+               }
+            }
+            public void print10() {
+                lock.lock();
+                try {
+                    while (flag != 2) {
+                        c2.await();
+                    }
+                    for (int i = 0; i < 10; i++) {
+                        System.out.println(Thread.currentThread().getName() + "\t" + "A");
+                    }
+                    flag = 3;
+                    c3.signal();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    lock.unlock();
+                }
+            }
+           public void print15(){
+                lock.lock();
+               try {
+                   while (flag!=3){
+                       c3.await();
+                   }
+                   for (int i = 0; i <15 ; i++) {
+                       System.out.println(Thread.currentThread().getName()+"\t"+"A");
+                   }
+
+                   flag=1;
+                   c1.signal();
+               }catch (Exception e){
+                   e.printStackTrace();
+               }finally {
+                lock.unlock();
+               }
+
+            }
+
+            public static void main(String[] args) {
+                ThreadResource t = new ThreadResource();
+                new Thread(()->{
+                    t.print5();
+                },"1线程").start();
+                new Thread(()->{
+                    t.print10();
+                },"2线程").start();
+                new Thread(()->{
+                    t.print15();
+                },"3线程").start();
+            }
+        }
+  7，冒泡算法：
+               public static void main(String[] args) {
+                int arr[] = {2,5,6,8,4,9,3};
+                for (int i = 0; i <=arr.length-1 ; i++) {
+                    System.out.println(arr[i]);
+
+                }
+
+
+                for (int i = 0; i <arr.length-1 ; i++) {
+                    for (int j = 0; j <arr.length-i-1 ; j++) {
+
+                        if (arr[j]>arr[j+1]){
+                            int  temp= arr[j];
+                            arr[j]=arr[j+1];
+                            arr[j+1]=temp;
+                        }
+                    }
+                }
+                System.out.println("================================排序后");
+                for (int i = 0; i <=arr.length-1 ; i++) {
+                    System.out.println(arr[i]);
+
+                }
+            }
+        }
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
      
