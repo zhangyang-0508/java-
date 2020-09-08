@@ -1,0 +1,2 @@
+1，使用maybtis-plus代码生成器生成的mapper，如果出现mapper找不到，需要在mapper类上加@mapper层
+2，数据库定义字段的时候尽量避开保留字，如state，order等，mabaits-plus遇到保留字暂时不知道如何处理
