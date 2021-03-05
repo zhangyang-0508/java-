@@ -1,1 +1,13 @@
-1，
+1，String::intern()是一个本地方法，他的作用是如果字符串常量池中已经包含一个等于此String对象的字符串，则返回代表池中这个字符串的String对象的引用；否则，会将String对象包含的字符串添加到常量池中，并且
+    返回此Stirng对象的引用
+     有一个初始化的java字符串（jdk出娘胎自带的），在加载sun.misc.Version这个类的时候进入常量池
+          String append = new StringBuilder("aaal").append("bab").toString();
+        String append1 = new StringBuilder("ja").append("va").toString();
+        String intern = append.intern();
+        String intern1 = append1.intern();
+
+        System.out.println(append==intern);  //true
+        System.out.println(append1==intern1);//false    java是jdk原生的常量，ra.jar包里   在Verison类里
+        为什么java是false:sun.misc.Version类会在JDK类库的初始化过程中被加载并初始化，而在初始化是它需要对静态常量字段根据指定的常量池（ConstancValue）做默认初始化，此时被sun.misc.Version.launcher
+                         静态常量字段所引用的"java"字符串字面量inern到HotSpot VM的字符串常量池--StringTable里了
+        
