@@ -11,3 +11,63 @@
         为什么java是false:sun.misc.Version类会在JDK类库的初始化过程中被加载并初始化，而在初始化是它需要对静态常量字段根据指定的常量池（ConstancValue）做默认初始化，此时被sun.misc.Version.launcher
                          静态常量字段所引用的"java"字符串字面量inern到HotSpot VM的字符串常量池--StringTable里了
         
+2.力扣第一题，两数求和
+通过双重循环遍历数组中所有元素的两两组合，当出现符合的和返回两个元素的下标
+  public static int[] twoSum1(int[] nums,int target){
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = i+1; j < nums.length; j++) {
+                if (target-nums[i]==nums[j]){
+                    return new int[]{i,j};
+                }
+            }
+        }
+        return null;
+    }
+    public static int[] twoSum2(int[] nums,int target){
+        Map<Integer, Integer> map = new HashMap<>();
+        for (int i = 0; i < nums.length; i++) {
+         int par=  target-nums[i];
+         if (map.containsKey(par)){
+             return new int[]{map.get(par),i};
+         }
+         map.put(nums[i], i);
+        }
+        return null;
+    }
+  
+  P8
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
