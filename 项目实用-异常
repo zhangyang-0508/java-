@@ -1,0 +1,419 @@
+1，异常
+全局异常捕获：
+package com.yl.common.base.handler;
+
+
+import com.sun.corba.se.impl.io.TypeMismatchException;
+import com.yl.common.base.enums.ResultCodeEnum;
+import com.yl.common.base.exception.BusinessException;
+import com.yl.common.base.exception.ServiceException;
+import com.yl.common.base.exception.SlightException;
+import com.yl.common.base.model.vo.Result;
+import com.yl.oauth.api.exception.MonitorServiceException;
+import com.yl.platform.i18n.helper.YlI18nHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import java.net.SocketTimeoutException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    private static Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final static String RESPONSE_DATA = "responseData";
+    @Autowired
+    private YlI18nHelper i18nHelper;
+
+    /**
+     * 违反约束，javax扩展定义
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Result resolveConstraintViolationException(ConstraintViolationException ex) {
+        Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
+        StringBuilder strBuilder = new StringBuilder();
+        for (ConstraintViolation<?> violation : violations) {
+            strBuilder.append(violation.getInvalidValue() + " " + violation.getMessage() + "\n");
+        }
+        String errorMessage = strBuilder.toString();
+        if(logger.isWarnEnabled()) logger.warn("参数错误:", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        if (errorMessage != null) {
+            Result result = Result.error(ResultCodeEnum.PARAMS_IS_INVALID.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_IS_INVALID.getMsg()) + ":" + errorMessage);
+            request.setAttribute(RESPONSE_DATA, result);
+            return result;
+        }
+        Result result = Result.error(ResultCodeEnum.PARAMS_IS_INVALID.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_IS_INVALID.getMsg()) + ":" + ex.getMessage());
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 参数无效，如JSON请求参数违反约束
+     */
+    @ExceptionHandler( MethodArgumentNotValidException.class)
+    public Result resolveMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+        //获取错误信息
+        String errorMessage = buildMessages(ex.getBindingResult());
+        if(logger.isDebugEnabled()) logger.debug("参数无效:", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        if (errorMessage != null) {
+            Result result = Result.error(ResultCodeEnum.PARAMS_IS_INVALID.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_IS_INVALID.getMsg()) + ":" + errorMessage);
+            request.setAttribute(RESPONSE_DATA, result);
+            return result;
+        }
+        Result result = Result.error(ResultCodeEnum.PARAMS_IS_INVALID.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_IS_INVALID.getMsg()) + ":" + ex.getMessage());
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+
+    }
+
+    /**
+     * 绑定失败，如表单对象参数违反约束
+     */
+    @ExceptionHandler(BindException.class)
+    public Result resolveBindException(BindException ex) {
+        //获取错误信息
+        String errorMessage = buildMessages(ex.getBindingResult());
+        if(logger.isDebugEnabled())  logger.debug("参数绑定错误:", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        if (errorMessage != null) {
+            Result result = Result.error(ResultCodeEnum.PARAMS_IS_INVALID.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_IS_INVALID.getMsg()) + ":" + errorMessage);
+            request.setAttribute(RESPONSE_DATA, result);
+            return result;
+        }
+        Result result = Result.error(ResultCodeEnum.PARAMS_IS_INVALID.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_IS_INVALID.getMsg())+ ":" + ex.getMessage());
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 参数缺失
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public Result resolveMissingServletRequestParameterException(MissingServletRequestParameterException ex) {
+        if(logger.isDebugEnabled())  logger.debug("参数缺失:", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        Result result = Result.error(ResultCodeEnum.PARAMS_NOT_COMPLETE.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_NOT_COMPLETE.getMsg()) + ":" + ex.getMessage());
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+
+    }
+
+    /**
+     * 参数类型不匹配
+     */
+    @ExceptionHandler(TypeMismatchException.class)
+    public Result resolveTypeMismatchException(TypeMismatchException ex) {
+        if(logger.isDebugEnabled()) logger.debug("参数类型不匹配:", ex);
+        //TODO 配合链路日志
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        Result result = Result.error(ResultCodeEnum.PARAMS_TYPE_ERROR.getCode(), i18nHelper.conver(ResultCodeEnum.PARAMS_TYPE_ERROR.getMsg()) + ":" + ex.getMessage());
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 新增feign调用超时异常
+     */
+    @ExceptionHandler(SocketTimeoutException.class)
+    public Result resolveSocketTimeoutException(SocketTimeoutException ex) {
+        logger.error("远程调用超时:", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        Result result = Result.error(ResultCodeEnum.INTERFACE_REQUEST_TIMEOUT.getCode(), i18nHelper.conver(ResultCodeEnum.INTERFACE_REQUEST_TIMEOUT.getMsg()) + ":" + ex.getMessage());
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 自定义异常
+     */
+    @ExceptionHandler(ServiceException.class)
+    public Result resolveServiceException(ServiceException ex) {
+        logger.error("自定义异常", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        Result result = Result.error(ex.getCode(), i18nHelper.conver(ex.getMessage()));
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 业务异常处理
+     */
+    @ExceptionHandler(BusinessException.class)
+    public Result resolveBusinessException(BusinessException ex) {
+        if(logger.isWarnEnabled()) logger.warn("业务异常", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        Result result = Result.error(ex.getCode(), i18nHelper.conver(ex.getMessage()));
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 请求方式异常
+     **/
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public Result resolveMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        if(logger.isWarnEnabled()) logger.warn("请求方式异常:", ex);
+        //TODO 配合链路日志
+        HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
+        Result result = Result.error(ResultCodeEnum.HTTP_REQUEST_METHOD_ERROR.getCode(),i18nHelper.conver(ResultCodeEnum.HTTP_REQUEST_METHOD_ERROR.getMsg()));
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 只记录info级别的异常处理
+     */
+    @ExceptionHandler(SlightException.class)
+    public Result resolveSlightException(SlightException ex) {
+        logger.info("info级别异常", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+
+        Result result = Result.error(ex.getCode(), i18nHelper.conver(ex.getMessage()));
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    @ExceptionHandler(MonitorServiceException.class)
+    public Result resolveMonitorServiceException(MonitorServiceException ex) {
+        logger.info("info级别异常", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+
+        Result result = Result.error(ex.getCode(), i18nHelper.conver(ex.getMessage()));
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 系统内部错误
+     */
+    @ExceptionHandler(Exception.class)
+    public Result resolveException(Exception ex) {
+        logger.error("系统内部错误{}:", ex);
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();//TODO 配合链路日志
+        Result result = Result.error(ResultCodeEnum.SYSTEM_INNER_ERROR.getCode(),i18nHelper.conver(ResultCodeEnum.SYSTEM_INNER_ERROR.getMsg()));
+        request.setAttribute(RESPONSE_DATA, result);
+        return result;
+    }
+
+    /**
+     * 构建错误信息
+     */
+    private String buildMessages(BindingResult result) {
+        StringBuilder resultBuilder = new StringBuilder();
+
+        List<ObjectError> errors = result.getAllErrors();
+        if (errors != null && errors.size() > 0) {
+            for (ObjectError error : errors) {
+                if (error instanceof FieldError) {
+                    FieldError fieldError = (FieldError) error;
+                    String fieldName = fieldError.getField();
+                    String fieldErrMsg = fieldError.getDefaultMessage();
+                    resultBuilder.append(fieldName).append(" ").append(fieldErrMsg).append(";");
+                }
+            }
+        }
+        return resultBuilder.toString();
+    }
+}
+
+自定义业务异常父类：
+@Data
+public class ServiceException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
+    private Integer code;
+
+    public ServiceException(ResultCodeEnum resultCode){
+        super(resultCode.getMsg());
+        this.code = resultCode.getCode();
+    }
+    public ServiceException(RespCodeEnum resultCode){
+        super(resultCode.getMsg());
+        this.code = resultCode.getCode();
+    }
+
+
+    public ServiceException(Integer code,String msg) {
+        super(msg);
+        this.code = code;
+    }
+
+
+    public ServiceException(String msg) {
+        super(msg);
+    }
+
+    public ServiceException(Throwable throwable) {
+        super(throwable);
+    }
+
+    public ServiceException(String msg, Throwable throwable) {
+        super(msg, throwable);
+    }
+}
+
+
+public class BusinessException extends ServiceException {
+    public BusinessException(ResultCodeEnum resultCode) {
+        super(resultCode);
+    }
+
+    public BusinessException(RespCodeEnum resultCode) {
+        super(resultCode);
+    }
+
+    public BusinessException(Integer code, String msg) {
+        super(code, msg);
+    }
+
+    public BusinessException(String msg) {
+        super(msg);
+    }
+
+    public BusinessException(Throwable throwable) {
+        super(throwable);
+    }
+
+    public BusinessException(String msg, Throwable throwable) {
+        super(msg, throwable);
+    }
+}
+
+用法：  throw new BusinessException(ResultCodeEnum.PERMISSION_NO_ACCESS);
+    
+枚举：
+public enum ResultCodeEnum {
+
+
+    /**
+     * 成功状态码
+     */
+    SUCCESS(1, "请求成功"),
+
+    /**
+     * 失败状态码
+     */
+    FAIL(0, "失败"),
+
+    /**
+     * 参数错误
+     */
+    PARAMS_IS_NULL(999001000, "参数为空错误"),
+    PARAMS_NOT_COMPLETE(999001010, "参数不全"),
+    PARAMS_TYPE_ERROR(999001020, "参数类型匹配错误"),
+    PARAMS_IS_INVALID(999001030, "参数无效"),
+
+    /**
+     * 数据错误
+     */
+    DATA_NOT_FOUND(999002000, "数据未找到"),
+    DATA_IS_WRONG(999002010, "数据有误"),
+    DATA_ALREADY_EXISTED(999002020, "数据已存在"),
+    DATA_ALREADY_REPEAT(999002020, "数据重复"),
+
+    /**
+     * 用户错误
+     */
+    USER_NOT_EXIST(999003000, "用户不存在"),
+    USER_NOT_LOGGED_IN(999003010, "用户未登陆"),
+    USER_ACCOUNT_ERROR(999003020, "用户名或密码错误"),
+    USER_ACCOUNT_FORBIDDEN(999003030, "用户账户已被禁用"),
+    USER_HAS_EXIST(999003040, "该用户已存在"),
+    USER_CODE_ERROR(999003050, "验证码错误"),
+    REPEATED_GET_CODE_CAREFUL(999006060,"重复获取验证码，请谨慎操作"),
+    REPEATED_GET_CODE_EXCEED_TIMES_CAREFUL(999006061,"重复获取验证码超过5次将无法继续获取，请谨慎操作"),
+    REPEATED_GET_CODE_EXCEED_TIMES_FREEZE_CAREFUL(999006062,"重复获取验证码，获取入口将被冻结30分钟，如需登录请联系管理员操作"),
+    REPEATED_GET_CODE_EXCEED_TIMES_FROZEN_CAREFUL(999006063,"重复获取验证码，获取入口已被冻结30分钟，如需登录请联系管理员操作"),
+
+
+    /**
+     * 接口错误，系统错误
+     */
+    INTERFACE_INNER_INVOKE_ERROR(999005000, "系统内部接口调用异常"),
+    INTERFACE_OUTER_INVOKE_ERROR(999005010, "系统外部接口调用异常"),
+    INTERFACE_FORBIDDEN(999005020, "接口禁止访问"),
+    INTERFACE_ADDRESS_INVALID(999005030, "接口地址无效"),
+    INTERFACE_REQUEST_TIMEOUT(999005040, "接口请求超时"),
+    INTERFACE_EXCEED_LOAD(999005050, "接口负载过高"),
+    SYSTEM_INNER_ERROR(999005060, " 系统内部错误"),
+    SERVICE_TRANSFER_ERROR(999005070, "跨服务调用错误"),
+    SERVICE_HYSTRIX_ERROR(999005080, "服务不可用"),
+
+    /**
+     * 业务错误
+     */
+    BUSINESS_ERROR(999006000, "系统业务出现问题"),
+    ID_GENERATOR_ERROR(999006010, "ID生成异常"),
+    HTTP_REQUEST_METHOD_ERROR(999006020, "请求方式异常"),
+    CODE_IS_EXIST_ERROR(999006030, "该编码已存在"),
+    MONGO_QUERY_TYPE_ERROR(999006040,"查询mongo异常"),
+    MONGO_ADD_TYPE_ERROR(999006050,"新增mongo异常，主键重复"),
+
+    /**
+     * 权限错误
+     */
+    PERMISSION_NO_ACCESS(999007000, "当前按钮没有访问权限"),
+    PERMISSION_COPY_ERROR(999007010, "权限复制失败"),
+
+    /**
+     * 基础数据
+     */
+    TYPE_CODE_ALREADY_EXSIT(999009010,"类型名称已存在！"),
+    SERVICE_CODE_ALREADY_EXSIT(999009020,"服务类型编码已存在！"),
+    FEES_CODE_ALREADY_EXSIT(999009030,"费用类型编码已存在！"),
+
+    /***
+     * 文件上传1
+     */
+    FILE_UPLOAD_ERROR(999008010, "文件上传失败"),
+    FILE_DOWNLOAD_ERROR(999008020, "文件下载失败"),
+    FILE_DELETE_ERROR(999008030, "文件删除失败"),
+    FILE_GET_ERROR(999008040, "获取文件失败"),
+    FILE_TYPE_ERROR(999008050, "文件类型错误"),
+    MODULE_TYPE_ERROR(999008060, "模块类型错误"),;
+
+
+    private int code;
+    private String msg;
+
+    ResultCodeEnum() {
+    }
+
+    ResultCodeEnum(int code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getMsg() {
+        return msg;
+    }
+
+
+    @Override
+    public String toString() {
+        return "ResultCodeEnum [code=" + code + ", msg=" + msg + "]";
+    }
+}
