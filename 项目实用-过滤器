@@ -1,0 +1,34 @@
+@Slf4j
+@WebFilter(filterName = "TraceFilter", urlPatterns = "/*")
+public class TraceFilter implements Filter {
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+
+    }
+
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        HttpServletRequest req = (HttpServletRequest) servletRequest;
+        HttpServletResponse res = (HttpServletResponse) servletResponse;
+        String traceId = getTraceID();
+        MDC.put("traceID",traceId);
+        String traceID = req.getHeader("traceID");
+        if(!StringUtils.isEmpty(traceID)){
+            MDC.put("traceID",traceID);
+        }
+        log.info("本次请求的traceID:{}",MDC.get("traceID"));
+        filterChain.doFilter(servletRequest,servletResponse);
+    }
+    /**
+     * trace id 规则待扩展
+     * @return
+     */
+    private static String getTraceID() {
+        return String.format("%s%s%05d", "10", System.currentTimeMillis(), new Random().nextInt(99999));
+
+    }
+    @Override
+    public void destroy() {
+        TraceContext.clear();
+    }
+}
