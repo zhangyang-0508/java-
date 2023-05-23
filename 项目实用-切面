@@ -1,0 +1,120 @@
+package com.yl.oauth.api.aspect;
+
+import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+@Aspect
+@Component
+@Order(1)
+@Slf4j
+public class ControllerLogAspect {
+
+    @Value("${controller.log:AppLoginController,EmailCheckCodeController,LoginController,PermissionController,SmsCheckCodeController,SysPermissionController,SysPermissionResourceController,SysResourceController,SysRoleController,SysRoleResourceController,SysUserController,SysUserRoleController,SysZtFunctionController,SysZtMenuController}")
+    private String controllerLog;
+
+    @Pointcut("execution(* com.yl.oauth.api.controller.*.*(..))")
+    private void controllerAspect() {
+    }
+
+    @Around(value = "controllerAspect()")
+    public Object around(ProceedingJoinPoint pjp) throws Throwable {
+        Map<String, Object> logInfoCollector = Maps.newHashMap();
+        try {
+            boolean isLog = methodBefore(pjp, logInfoCollector);
+
+            Object proceed = pjp.proceed();
+
+            if (isLog) {
+                methodAfterReturning(proceed, logInfoCollector);
+            }
+            return proceed;
+        }catch (Exception e) {
+            throw e;
+        }
+    }
+
+    public boolean methodBefore(JoinPoint pjp, Map<String, Object> logInfoCollector) throws NoSuchMethodException {
+
+        try {
+            ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            HttpServletRequest request1 = servletRequestAttributes.getRequest();
+            String traceID = request1.getHeader("traceID");
+            logInfoCollector.put("[traceID]",traceID);
+            logInfoCollector.put("[cost]", System.currentTimeMillis());
+            String className=pjp.getTarget().getClass().getSimpleName();
+            // "AnswerController","ApiCarModelController","BjApiCarModelController"
+            List<String> controllerList = Arrays.asList(controllerLog.split(","));
+            if (!controllerList.contains(className)) {
+                return false;
+            }
+            String methodName = pjp.getSignature().getName();
+            Class<?> classTarget = pjp.getTarget().getClass();
+            Class<?>[] par = ((MethodSignature) pjp.getSignature()).getParameterTypes();
+            Method objMethod = classTarget.getMethod(methodName, par);
+            logInfoCollector.put("logHeader",className+" "+methodName+": {}");
+            PostMapping post = objMethod.getAnnotation(PostMapping.class);
+            GetMapping get = objMethod.getAnnotation(GetMapping.class);
+            RequestMapping request = objMethod.getAnnotation(RequestMapping.class);
+            DeleteMapping annotation = objMethod.getAnnotation(DeleteMapping.class);
+            if (post != null || get != null || request != null ||annotation!=null) {
+                Object[] args = pjp.getArgs();
+                for (Object obj : args) {
+                    logInfoCollector.put("[requestParam]", obj);
+                }
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("controllerAspect methodBefore: ", e);
+        }
+        return false;
+    }
+
+    public void methodAfterReturning(Object result, Map<String, Object> logInfoCollector) {
+        String logHeader = "";
+        try {
+            logHeader = logInfoCollector.get("logHeader").toString();
+            logInfoCollector.remove("logHeader");
+            logInfoCollector.put("[cost]", System.currentTimeMillis() - (long) logInfoCollector.get("[cost]"));
+            //logInfoCollector.put("[result]",result == null ? "返回为null" : result);
+        } catch (Exception e) {
+            log.error("controllerAspect methodAfterReturning: ", e);
+        }finally {
+            log.info(logHeader, JSON.toJSONString(logInfoCollector));
+        }
+    }
+    ThreadLocal<Long> startTime = new ThreadLocal<>();
+
+    @Before("controllerAspect()")
+    public void doBefore(JoinPoint joinPoint) throws Throwable {
+        startTime.set(System.currentTimeMillis());
+    }
+
+    @AfterReturning(returning = "ret", pointcut = "controllerAspect()")
+    public void doAfterReturning(Object ret) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        //记录请求的时间
+        log.info("Aspect_URL:" + request.getRequestURL().toString() + ", cost:" + (System.currentTimeMillis() - startTime.get()));
+    }
+
+}
