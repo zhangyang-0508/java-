@@ -1,0 +1,20 @@
+@Slf4j
+public class RequestHeaderInterceptorConfiguration implements RequestInterceptor {
+
+    @Override
+    public void apply(RequestTemplate template) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if(attributes != null){
+            HttpServletRequest request = attributes.getRequest();
+            String values = request.getHeader(HeaderParamEnum.OAUTH_AUTHTOKEN.getName());
+            template.header(HeaderParamEnum.OAUTH_AUTHTOKEN.getName(), values);
+            if(request.getParameter(PageCons.PAGE_CURRENT) != null) {
+                template.query(PageCons.PAGE_CURRENT, request.getParameter(PageCons.PAGE_CURRENT));
+            }
+            if(request.getParameter(PageCons.PAGE_SIZE) != null) {
+                template.query(PageCons.PAGE_SIZE, request.getParameter(PageCons.PAGE_SIZE));
+            }
+            log.debug("feign interceptor header:{}",template);
+        }
+    }
+}
