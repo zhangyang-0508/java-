@@ -1,0 +1,180 @@
+package com.yl.common.config.base;
+
+import com.alibaba.fastjson.JSONObject;
+import com.yl.base.exception.SlightException;
+import com.yl.util.HttpsUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+
+@Component
+@Aspect
+@Slf4j
+public class OauthAspectMonitor {
+    private static ConcurrentHashMap<String, Integer> hashCache = new ConcurrentHashMap<>();
+
+    @Value("${oauth.aspect.monitor:false}")
+    private boolean flag;
+    @Value("${oauth.aspect.monitor.send:true}")
+    private boolean send;
+
+
+    @Pointcut(("execution(* com.yl.controller.dataRole.*.*(..))"))
+    public void dataRole() {
+    }
+
+    @Pointcut(("execution(* com.yl.controller.oauth.*.*(..))"))
+    public void oauth() {
+    }
+
+    @Pointcut(("execution(* com.yl.controller.permission.*.*(..))"))
+    public void permission() {
+    }
+
+    @Pointcut(("execution(* com.yl.controller.resource.*.*(..))"))
+    public void resource() {
+    }
+
+    @Pointcut(("execution(* com.yl.controller.role.*.*(..))"))
+    public void role() {
+    }
+
+    @Pointcut(("execution(* com.yl.controller.user.*.*(..))"))
+    public void user() {
+    }
+
+    @Pointcut(("execution(* com.yl.controller.whitelist.*.*(..))"))
+    public void whitelist() {
+    }
+
+
+    @Pointcut(("dataRole()||oauth()||permission()||resource()||role()||user()||whitelist()"))
+    public void init() {
+    }
+
+    @Before("init()()")
+    public void around(JoinPoint joinPoint) {
+        try {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            HttpServletRequest request = attributes.getRequest();
+            StringBuffer requestURL = request.getRequestURL();
+            String routeName = request.getHeader("routename");
+            log.info("基础资料小前台老接口监控调用RequestURL:{}", requestURL);
+            if (send) {
+                Integer integer = hashCache.get(requestURL.toString() + "," + routeName);
+                if (integer == null) {
+                    hashCache.put(requestURL.toString() + "," + routeName, 1);
+                }
+                if (integer != null) {
+                    Integer num = hashCache.get(requestURL.toString() + "," + routeName);
+                    hashCache.put(requestURL.toString() + "," + routeName, num + 1);
+
+                }
+                log.info("hashCache:{}", hashCache);
+            }
+        } catch (Throwable e) {
+        }
+    }
+
+    @AfterReturning("init()()")
+    public void after(JoinPoint jp) throws Throwable {
+        if (flag) {
+            throw new SlightException(404, "must update basicdata-->oauth......");
+        }
+
+    }
+
+    private void sendMsgToFeiShuTalk(String content) {
+        String url = "https://open.feishu.cn/open-apis/bot/v2/hook/e164af3e-6e81-4391-acd5-89ec227bc6ea";
+        JSONObject paramJson = new JSONObject();
+        paramJson.put("msg_type", "text");
+        JSONObject contentJson = new JSONObject();
+        contentJson.put("text", content);
+        paramJson.put("content", contentJson);
+        HttpsUtils.post(url, paramJson.toJSONString());
+    }
+
+    /**
+     * 定时任务，10分钟执行一次
+     */
+    @Scheduled(cron = "0 */10 * * * ?")
+    public void sendMsgToDingTalkTask() {
+        log.info("开始执行定时任务：{}", hashCache);
+        StringBuffer stringBuffer = new StringBuffer();
+        for (Map.Entry<String, Integer> entry : hashCache.entrySet()) {
+            String key = entry.getKey();
+            Integer num = entry.getValue();
+            String[] split = key.split(",");
+//            String applicationName = getApplicationName(split[1]);
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            stringBuffer.append("前端页面：" + "10分钟内调用次数：" + num + "\n" + "Root Name：" + split[1] + "\n" + "后端接口：" + split[0] + "\n" + "请求时间：" + simpleDateFormat.format(new Date()));
+            stringBuffer.append("\n\n");
+        }
+
+        String context = stringBuffer.toString();
+        //send msg to Ding Talk
+        log.info("context:{}", stringBuffer);
+        if (!StringUtils.isEmpty(context)) {
+            if (context.getBytes().length < 20000) {
+                if (send) {
+                    sendMsgToFeiShuTalk(context);
+                }
+            }
+            if (context.getBytes().length >= 20000) {
+                String[] split = context.split("\n\n");
+                List<String> strings = Arrays.asList(split);
+                List<List<String>> contexts = split(strings, 50);
+                for (List<String> lists : contexts) {
+                    StringBuffer contextMsg = new StringBuffer();
+                    for (int i = 0; i < lists.size(); i++) {
+                        contextMsg.append(lists.get(i)).append("\n\n");
+                    }
+                    if (send) {
+                        sendMsgToFeiShuTalk(contextMsg.toString());
+                    }
+                }
+            }
+        }
+        hashCache.clear();
+    }
+
+    /**
+     * 数组分割
+     */
+    public static <T> List<List<T>> split(List<T> list, int batchSize) {
+        //参数校验
+        if (list == null || list.isEmpty()) {
+            throw new RuntimeException("list集合不可以为空");
+        }
+        if (batchSize <= 0) {
+            throw new RuntimeException("batchSize不可以<=0");
+        }
+        List<List<T>> resultList = new ArrayList<>();
+        int i1 = list.size() / batchSize;
+        int i2 = i1 * batchSize + list.size() % batchSize;
+        if (i1 > 0) {
+            for (int i = 0; i < i1; i++) {
+                resultList.add(list.subList(i * batchSize, (i + 1) * batchSize));
+            }
+        }
+        if (list.size() % batchSize > 0) {
+            resultList.add(list.subList(i1 * batchSize, i2));
+        }
+        return resultList;
+    }
+}
