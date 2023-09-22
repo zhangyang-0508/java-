@@ -1,0 +1,47 @@
+引入pom:
+ <redission.version>3.13.4</redission.version>
+
+   <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>${redission.version}</version>
+        </dependency>
+配置客户端：
+@Configuration
+@DependsOn(value = {"redisUtil"})
+public class RedissonConfig {
+    private final RedisConfigBean redisConfigBean;
+
+    public RedissonConfig(RedisConfigBean redisConfigBean) {
+        this.redisConfigBean = redisConfigBean;
+    }
+
+    @Bean
+    public RedissonClient getRedissonClient() {
+        Config config = new Config();
+        List<Map<String, String>> nodesInfo = redisConfigBean.getNodesInfo();
+        ClusterServersConfig clusterServersConfig = config.useClusterServers().setScanInterval(2000);
+        for (Map<String, String> stringStringMap : nodesInfo) {
+            String ip = stringStringMap.get("ip");
+            String port = stringStringMap.get("port");
+            clusterServersConfig.addNodeAddress("redis://" + ip + ":" + port);
+        }
+        clusterServersConfig.setPassword(redisConfigBean.getPassword());
+        return Redisson.create(config);
+    }
+}
+
+
+使用：
+RLock lock = redissonClient.getLock(LOCK_SEND_EMAIL_DAY_LIMITS);
+        lock.lock();
+try{
+            log.info("加锁成功，执行业务...线程id:{}", Thread.currentThread().getId());
+            //业务逻辑
+
+}catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            log.info("释放锁...线程id:{}", Thread.currentThread().getId());
+            lock.unlock();
+        }
