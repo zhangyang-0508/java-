@@ -1,0 +1,71 @@
+引入依赖：
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-stream-rabbit</artifactId>
+</dependency>
+
+
+配置：
+spring:
+  cloud:
+    stream:        
+      bindings:
+        email-send-log-output:
+          destination: email-send-log
+          binder: rabbit1
+          group: emali-send
+        email-send-log-input:
+          destination: email-send-log
+          binder: rabbit1
+          group: emali-send
+      binders:
+        rabbit1:
+          type: rabbit
+          environment:
+            spring:
+              rabbitmq:
+                host: 
+                port: 
+                username: 
+                password: 
+                virtual-host: /
+
+   group配置成一样保证，消息不回被多个客户端消费，导致重复消费
+
+
+   代码：
+   @Component
+public interface EmailSendLogInterface {
+    String EMAIL_END_LOG_OUTPUT = "email-send-log-output";
+    String EMAIL_END_LOG_INPUT = "email-send-log-input";
+
+    @Input(EMAIL_END_LOG_INPUT)
+    SubscribableChannel emailLogListen();
+    @Output(EMAIL_END_LOG_OUTPUT)
+    MessageChannel sendEmailLog();
+}
+
+
+
+发送者：
+@Autowired
+    private EmailSendLogInterface emailSendLogInterface;
+
+        public void sendTestMQ() {
+        Message<String> message = MessageBuilder.withPayload("我是发送者").build();
+        boolean send = emailSendLogInterface.sendEmailLog().send(message);
+        log.info("mq发送者：{}",send);
+    }
+
+
+消费者：
+@Slf4j
+@Component
+@EnableBinding(value = {EmailSendLogInterface.class})
+public class EmailSendLogHandleReceive {
+
+    @StreamListener(value = EmailSendLogInterface.EMAIL_END_LOG_INPUT)
+    public void receiveEmailSendLog(@Payload Message<String> message){
+        log.info("mq消费者：{}",message.getPayload());
+    }
+}
