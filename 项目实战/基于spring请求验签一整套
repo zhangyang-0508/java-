@@ -1,0 +1,552 @@
+pom依赖：
+      <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.6</version>
+        </dependency>
+
+1.配置类：
+import javax.servlet.ReadListener;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
+import java.io.*;
+import java.nio.charset.Charset;
+
+/***
+ *@title ContentCachingRequestWrapper
+ *@description <TODO description class purpose>
+ *@author zhangyang2
+ *@create 2023-10-20 11:09
+ **/
+public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
+    private final byte[] body;
+
+    public ContentCachingRequestWrapper(HttpServletRequest request) throws IOException {
+        super(request);
+        body = getBodyString(request).getBytes(Charset.forName("UTF-8"));
+    }
+
+    @Override
+    public BufferedReader getReader() throws IOException {
+        return new BufferedReader(new InputStreamReader(getInputStream()));
+    }
+
+    @Override
+    public ServletInputStream getInputStream() throws IOException {
+
+        final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body);
+
+        return new ServletInputStream() {
+
+            @Override
+            public int read() throws IOException {
+                return byteArrayInputStream.read();
+            }
+
+            @Override
+            public boolean isFinished() {
+                return false;
+            }
+
+            @Override
+            public boolean isReady() {
+                return false;
+            }
+
+            @Override
+            public void setReadListener(ReadListener readListener) {
+
+            }
+        };
+    }
+
+    /**
+     * 获取请求Body
+     *
+     * @param request
+     * @return
+     */
+    private String getBodyString(ServletRequest request) {
+        StringBuilder sb = new StringBuilder();
+        InputStream inputStream = null;
+        BufferedReader reader = null;
+        try {
+            inputStream = request.getInputStream();
+            reader = new BufferedReader(new InputStreamReader(inputStream, Charset.forName("UTF-8")));
+            String line = "";
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    public byte[] getBody() {
+        return body;
+    }
+
+
+}
+2.filter类：
+import com.yl.common.config.ContentCachingRequestWrapper;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import javax.servlet.*;
+import javax.servlet.annotation.WebFilter;
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
+
+/***
+ *@title HttpServletRequestFilter
+ *@description <TODO description class purpose>
+ *@author zhangyang2
+ *@create 2023-10-19 18:31
+ **/
+@Component
+@WebFilter(filterName = "HttpServletRequestFilter", urlPatterns = "/")
+@Order(10000)
+public class HttpServletRequestFilter implements Filter {
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+
+    }
+
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        servletRequest = new ContentCachingRequestWrapper((HttpServletRequest) servletRequest);
+        //获取请求中的流如何，将取出来的字符串，再次转换成流，然后把它放入到新request对象中
+        // 在chain.doFiler方法中传递新的request对象
+        filterChain.doFilter(servletRequest, servletResponse);
+    }
+
+    @Override
+    public void destroy() {
+
+    }
+}
+
+3，签名interceptor类：
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.*;
+
+/***
+ *@title SignInterceptor
+ *@description <TODO description class purpose>
+ *@author zhangyang2
+ *@create 2023-10-19 18:30
+ **/
+@Slf4j
+@Component
+public class SignInterceptor implements HandlerInterceptor {
+    private static final String ACCESSKEY = "accesskey";//调用者身份唯一标识
+    private static final String TIMESTAMP = "timestamp";//时间戳
+    private static final String SIGN = "sign";//签名
+    private static final String NONCE = "nonce";//随机值
+    private static final String secretKey = "uEErq6S8WKNRrlk1JNAlSS1FAIXGzV5fcEJHmsrW";//随机值
+    private static final List<String> accessKeys = Arrays.asList("sg3mI3XZW5yYYggP6Q==");//随机值
+    private static final List<String> backList = new ArrayList<String>() {
+    };//随机值
+    private static final List<String> whiteList = new ArrayList<String>() {
+    };//随机值
+    //超时时间，单位s
+    private static final int timeOut = 99999;
+
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        if (checkSign(request, response)) {//签名认证
+            return HandlerInterceptor.super.preHandle(request, response, handler);
+        }
+        return false;
+    }
+
+    /**
+     * 验证签名
+     *
+     * @param request
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    private boolean checkSign(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String ip = IpAddrUtil.getIpAddr();
+//        List<String> whiteList = Arrays.asList(whiteLists.split(";"));
+        //白校验
+        if (!CollectionUtils.isEmpty(whiteList)) {
+            if (whiteList.contains(ip)) {
+                return true;
+            }
+
+        }
+        response.setContentType("application/json");
+        response.setCharacterEncoding("utf8");
+        String accessKey = request.getHeader(ACCESSKEY);
+        String timestamp = request.getHeader(TIMESTAMP);
+        String nonce = request.getHeader(NONCE);
+        String sign = request.getHeader(SIGN);
+        if (!StringUtils.isNotBlank(accessKey)) {
+            response.getWriter().write(JSON.toJSONString(Result.error(ResultCodeEnum.SYSTEM_ACCESS_KEY_NOT_EMPTY)));
+            log.error("开放接口请求失败:{}", "时间:" + LocalDateTime.now() + ",IP:" + ip + ",访问接口:" + request.getRequestURL() + "错误信息:accessKey不能为空");
+            return false;
+        } else if (!accessKeys.contains(accessKey)) {
+            response.getWriter().write(JSON.toJSONString(Result.error(ResultCodeEnum.SYSTEM_ACCESS_KEY_NOT_EXIT)));
+            log.error("开放接口请求失败:{}", "时间:" + LocalDateTime.now() + ",IP:" + ip + ",访问接口:" + request.getRequestURL() + "错误信息:accessKey不存在");
+            return false;
+        }
+        if (StringUtils.isBlank(sign)) {
+            response.getWriter().write(JSON.toJSONString(Result.error(ResultCodeEnum.SYSTEM_SIGN_NOT_EMPTY)));
+            log.error("开放接口请求失败:{}", "时间:" + LocalDateTime.now() + ",IP:" + ip + ",访问接口:" + request.getRequestURL() + "错误信息:签名不能为空");
+            return false;
+        }
+
+        //黑名单校验
+//        List<String> backList = Arrays.asList(backLists.split(";"));
+        if (!CollectionUtils.isEmpty(backList)) {
+            if (backList.contains(ip)) {
+                response.getWriter().write(JSON.toJSONString(Result.error(ResultCodeEnum.SYSTEM_REQUEST_REJECT)));
+                log.error("开放接口请求失败：{}", "时间:" + LocalDateTime.now() + ",IP:" + ip + ",访问接口:" + request.getRequestURL() + "错误信息:黑名单拒绝请求");
+                return false;
+            }
+
+        }
+
+        if (StringUtils.isBlank(timestamp)) {
+            response.getWriter().write(JSON.toJSONString(ResultCodeEnum.SYSTEM_TIMESTAMP_NOT_EMPTY));
+            log.error("开放接口请求失败:{}", "时间:" + LocalDateTime.now() + ",IP:" + ip + ",访问接口:" + request.getRequestURL() + "错误信息:时间戳不能为空");
+            return false;
+        } else {
+//            if ((System.currentTimeMillis() - Long.parseLong(timestamp)) > timeOut * 1000) {
+//                response.getWriter().write(JSON.toJSONString(ResultCodeEnum.SYSTEM_TIMESTAMP_INVALID));
+//                log.error("开放接口请求失败:{}", "时间:" + LocalDateTime.now() + ",IP:" + ip + ",访问接口:" + request.getRequestURL() + "错误信息:请求已过期");
+//                return false;
+//            }
+        }
+        Map<String, Object> hashMap = new HashMap<>();
+        String queryStrings = request.getQueryString();//获取url后边拼接的参数
+        if (queryStrings != null) {
+            for (String queryString : queryStrings.split("&")) {
+                String[] param = queryString.split("=");
+                if (param.length == 2) {
+                    hashMap.put(param[0], param[1]);
+                }
+            }
+        }
+        hashMap.put(ACCESSKEY, accessKey);
+        hashMap.put(TIMESTAMP, timestamp);
+        if (StringUtils.isNotBlank(nonce)) {
+            hashMap.put(NONCE, nonce);
+        }
+        ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request);
+        String body = new String(requestWrapper.getBody(), StandardCharsets.UTF_8);
+        if (StringUtils.isNotBlank(body)) {
+            Map<String, Object> map = JSON.parseObject(body);
+            if (map != null) {
+                hashMap.putAll(map);
+            }
+        }
+        if (!SignUtil.signValidate(hashMap, secretKey, sign)) {//认证失败
+            response.getWriter().write(JSON.toJSONString(Result.error(ResultCodeEnum.SYSTEM_AUTH_FAIL)));
+            return false;
+        }
+        return true;
+    }
+}
+
+4，请求统一拦截类：
+@Configuration
+public class SignInterceptorConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(signInterceptor())
+                .addPathPatterns("/iamDataSync/**");//只拦截openapi前缀的接口
+    }
+    //交给spring管理 SignInterceptor bean
+    //不然下边 private OpenApiApplyMapper applyMapper;注入为null
+    @Bean
+    public SignInterceptor signInterceptor(){
+        return new SignInterceptor();
+    }
+
+}
+
+5，工具类
+（1）获取ip地址：
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+
+
+@Slf4j
+public class IpAddrUtil {
+
+    /**
+     * 获取用户的IP地址(可以穿透代理)
+     *
+     * @return ip
+     */
+    public static String getIpAddr() {
+        HttpServletRequest request = getRequest();
+
+        // 不使用request.getRemoteAddr()的原因是有可能用户使用了代理软件方式避免真实IP地址, 可是，如果通过了多级反向代理的话，X-Forwarded-For的值并不止一个，而是一串IP值
+
+        // 优先取x-original-forwarded-for
+
+
+        String ip = request.getHeader("x-real-ip");
+
+
+        if (!ipIsNullOrEmpty(ip)) {
+            log.info("IpAddrUtil ::: x-original-forwarded-for ip: " + ip);
+            ip = request.getHeader("x-original-forwarded-for");
+            // 多次反向代理后会有多个ip值，第一个ip才是真实ip
+            if (!StringUtils.isEmpty(ip) && ip.contains(",")) {
+                ip = ip.split(",")[0];
+            }
+        }
+
+
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("x-forwarded-for");
+            log.info("IpAddrUtil ::: x-forwarded-for ip: " + ip);
+            if (!ipIsNullOrEmpty(ip)) {
+                // 多次反向代理后会有多个ip值，第一个ip才是真实ip
+                if (ip.contains(",")) {
+                    ip = ip.split(",")[0];
+                }
+            }
+        }
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+            log.info("IpAddrUtil ::: Proxy-Client-IP ip: " + ip);
+        }
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+            log.info("IpAddrUtil ::: WL-Proxy-Client-IP ip: " + ip);
+        }
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("HTTP_CLIENT_IP");
+            log.info("IpAddrUtil ::: HTTP_CLIENT_IP ip: " + ip);
+        }
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+            log.info("IpAddrUtil ::: HTTP_X_FORWARDED_FOR ip: " + ip);
+        }
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("X-Real-IP");
+            log.info("IpAddrUtil ::: X-Real-IP ip: " + ip);
+        }
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getRemoteAddr();
+            log.info("IpAddrUtil ::: getRemoteAddr ip: " + ip);
+        }
+
+
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("remote_addr");
+            log.info("IpAddrUtil ::: remote_addr ip: " + ip);
+        }
+
+
+        log.info("IpAddrUtil ::: 获取客户端ip: " + ip);
+        return ip;
+    }
+
+
+    public static String getIpAddrByRemoteLogin() {
+        HttpServletRequest request = getRequest();
+        String ip = request.getHeader("x-real-ip");
+        if (ipIsNullOrEmpty(ip)) {
+            ip = request.getHeader("X_Real_IP");
+            log.info("IpAddrUtil ::: x-real-ip ip: " + ip);
+        }
+        return ip;
+    }
+
+
+    private static boolean ipIsNullOrEmpty(String ip) {
+        return ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip);
+    }
+
+    public static HttpServletRequest getRequest() {
+        return getServletRequestAttributes().getRequest();
+    }
+
+    private static ServletRequestAttributes getServletRequestAttributes() {
+        return (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    }
+
+
+}
+
+（2）签名生成工具类
+import java.security.SecureRandom;
+import java.util.Base64;
+
+/***
+ *@title KeyGenerator
+ *@description <TODO description class purpose>
+ *@author zhangyang2
+ *@create 2023-10-19 18:29
+ **/
+public class KeyGenerator {
+    private static final int KEY_LENGTH = 32; // 指定生成的key长度为32字节
+
+    public static String generateAccessKey() {
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[KEY_LENGTH / 2]; // 生成的字节数要除以2
+        random.nextBytes(bytes);
+        return Base64.getEncoder().encodeToString(bytes).replace("/", "").replace("+", "").substring(0, 20);
+    }
+
+    public static String generateSecretKey() {
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[KEY_LENGTH];
+        random.nextBytes(bytes);
+        return Base64.getEncoder().encodeToString(bytes).replace("/", "").replace("+", "").substring(0, 40);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(generateAccessKey());
+        System.out.println(generateSecretKey());
+    }
+}
+
+（3）签名工具类：
+import cn.hutool.core.util.URLUtil;
+import cn.hutool.crypto.digest.MD5;
+import com.alibaba.fastjson.JSON;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.*;
+
+/***
+ *@title SignUtil
+ *@description <TODO description class purpose>
+ *@author zhangyang2
+ *@create 2023-10-19 18:27
+ **/
+public class SignUtil {
+
+    /**
+     * 签名算法
+     * 1. 计算步骤
+     * 用于计算签名的参数在不同接口之间会有差异，但算法过程固定如下4个步骤。
+     * 将<key, value>请求参数对按key进行字典升序排序，得到有序的参数对列表N
+     * 将列表N中的参数对按URL键值对的格式拼接成字符串，得到字符串T（如：key1=value1&key2=value2），URL键值拼接过程value部分需要URL编码，URL编码算法用大写字母，例如%E8，而不是小写%e8
+     * 将应用密钥以app_key为键名，组成URL键值拼接到字符串T末尾，得到字符串S（如：key1=value1&key2=value2&app_key=密钥)
+     * 对字符串S进行MD5运算，将得到的MD5值所有字符转换成大写，得到接口请求签名
+     * 2. 注意事项
+     * 不同接口要求的参数对不一样，计算签名使用的参数对也不一样
+     * 参数名区分大小写，参数值为空不参与签名
+     * URL键值拼接过程value部分需要URL编码
+     *
+     * @return 签名字符串
+     */
+    private static String getSign(Map<String, Object> map, String secretKey) {
+        List<Map.Entry<String, Object>> infoIds = new ArrayList<>(map.entrySet());
+        Collections.sort(infoIds, new Comparator<Map.Entry<String, Object>>() {
+            @Override
+            public int compare(Map.Entry<String, Object> arg0, Map.Entry<String, Object> arg1) {
+                return (arg0.getKey()).compareTo(arg1.getKey());
+            }
+        });
+        StringBuffer sb = new StringBuffer();
+        for (Map.Entry<String, Object> m : infoIds) {
+            if (null == m.getValue() || StringUtils.isNotBlank(m.getValue().toString())) {
+                sb.append(m.getKey()).append("=").append(URLUtil.encodeAll(m.getValue().toString())).append("&");
+            }
+        }
+        sb.append("secret-key=").append(secretKey);
+        return MD5.create().digestHex(sb.toString()).toUpperCase();
+    }
+
+
+    //获取随机值
+    public static String getNonceStr(int length) {
+        //生成随机字符串
+        String str = "zxcvbnmlkjhgfdsaqwertyuiopQWERTYUIOPASDFGHJKLZXCVBNM1234567890";
+        Random random = new Random();
+        StringBuffer randomStr = new StringBuffer();
+        // 设置生成字符串的长度，用于循环
+        for (int i = 0; i < length; ++i) {
+            //从62个的数字或字母中选择
+            int number = random.nextInt(62);
+            //将产生的数字通过length次承载到sb中
+            randomStr.append(str.charAt(number));
+        }
+        return randomStr.toString();
+    }
+
+    //签名验证方法
+    public static boolean signValidate(Map<String, Object> map, String secretKey, String sign) {
+        String mySign = getSign(map, secretKey);
+        return mySign.equals(sign);
+    }
+
+    public static void main(String[] args) {
+//        Map<String, Object> map = new HashMap<>();
+        //json转map
+        String json = "{\n" +
+                "  \n" +
+                "    \"employeeUniqueKey\": \"005\",\n" +
+                "    \"employeeName\": \"李四\",\n" +
+                "    \"employeeCode\": \"zhangsan\",\n" +
+                "    \"personalTel\": \"110\",\n" +
+                "    \"companyEmail\": \"11@com\",\n" +
+                "    \"deptName\": \"测试部门\",\n" +
+                "    \"deptCode\": \"ceshibumen\",\n" +
+                "    \"positionName\": \"职位\",\n" +
+                "    \"positionCode\": \"zhiwe\",\n" +
+                "    \"hrStatus\": \"A\",\n" +
+                "    \"countryName\": \"国内\",\n" +
+                "    \"countryCode\": \"cn\",\n" +
+                "    \"dataSource\": 1,\n" +
+                "    \"requestId\":\"00000000005\"\n" +
+                "}";
+
+        Map<String, Object> map = JSON.parseObject(json);
+        System.out.println(map);
+
+
+        String secretKey = "uEErq6S8WKNRrlk1JNAlSS1FAIXGzV5fcEJHmsrW";
+
+
+        map.put("accesskey", "sg3mI3XZW5yYYggP6Q==");
+        map.put("nonce", "aaaa");
+        map.put("timestamp", "1697718161");
+//        System.out.println(map);
+        System.out.println(getSign(map, secretKey));
+    }
+}
+
+
+
+
