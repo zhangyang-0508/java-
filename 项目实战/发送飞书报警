@@ -1,0 +1,18 @@
+pom:
+
+      <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+<version>5.7.15</version>
+        </dependency>
+
+
+public static void sendFeiShu(String url, String content) {
+        HashMap<String, Object> paramMap = new HashMap<>();
+        paramMap.put("msg_type", "text");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("text", content);
+        paramMap.put("content", jsonObject);
+        HttpUtil.post(url, paramMap);
+
+    }
