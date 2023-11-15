@@ -1,0 +1,27 @@
+1.引入pom：
+  <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.16</version>
+        </dependency>
+
+2.在classpath（在标准Maven项目中为src/main/resources）的config目录下新建mail.setting文件
+
+# 邮件服务器的SMTP地址，可选，默认为smtp.<发件人邮箱后缀>
+host = smtp.feishu.cn
+# 邮件服务器的SMTP端口，可选，默认25
+port = 25
+# 发件人（必须正确，否则发送失败）
+from = xxxx
+# 用户名，默认为发件人邮箱前缀
+user = xxxx
+# 密码（注意，某些邮箱需要为SMTP服务单独设置授权码，详情查看相关帮助）
+pass = xxxx
+
+
+
+3，新建类，main方法测试：
+    public static void main(String[] args) {
+        MailUtil.send("zhangyang2@jtexpress.com", "测试", "邮件来自Hutool测试", false);
+
+    }
