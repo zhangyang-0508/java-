@@ -1,0 +1,38 @@
+ <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>sharding-jdbc-spring-boot-starter</artifactId>
+            <version>4.1.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.codehaus.groovy</groupId>
+                    <artifactId>groovy</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+application.properies文件
+
+        #配置主从数据源，要基于MySQL主从架构。
+spring.shardingsphere.datasource.names=m0,s0
+ 
+spring.shardingsphere.datasource.m0.type=com.zaxxer.hikari.HikariDataSource
+spring.shardingsphere.datasource.m0.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.shardingsphere.datasource.m0.jdbc-url=jdbc:mysql://192.168.11.131:3306/product-service?zeroDateTimeBehavior=convertToNull&useUnicode=true&characterEncoding=utf-8
+spring.shardingsphere.datasource.m0.username=root
+spring.shardingsphere.datasource.m0.password=11
+ 
+spring.shardingsphere.datasource.s0.type=com.zaxxer.hikari.HikariDataSource
+spring.shardingsphere.datasource.s0.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.shardingsphere.datasource.s0.jdbc-url=jdbc:mysql://192.168.11.132:3306/product-service?zeroDateTimeBehavior=convertToNull&useUnicode=true&characterEncoding=utf-8
+spring.shardingsphere.datasource.s0.username=root
+spring.shardingsphere.datasource.s0.password=11
+spring.shardingsphere.datasource.s0.connection-timeout=60000  //配置超时，想要看值设置 参考 项目启动时 注入数据源的 对象，看其属性的设置值情况
+#读写分离规则， m0 主库，s0 从库
+spring.shardingsphere.sharding.master-slave-rules.ds0.master-data-source-name=m0
+spring.shardingsphere.sharding.master-slave-rules.ds0.slave-data-source-names=s0
+ 
+spring.shardingsphere.props.sql.show=false
+spring.shardingsphere.props.check.table.metadata.enabled=false
+spring.shardingsphere.props.max.connections.size.per.query=100
+
+此处m0库负责增删改，s0负责查询，两处数据源可以配置不同，也可以配置为同一个数据源 
