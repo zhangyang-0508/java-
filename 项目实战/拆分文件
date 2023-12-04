@@ -1,0 +1,33 @@
+//inputFile 文件路径
+//outputFile 输出路径
+// gb  拆分文件的大小， 单位gb
+public static void fileToSamll(String inputFile, String outputFile,int gb) {
+ 
+        try {
+            int hash = gb * 1024 * 1024 * 1024;
+ 
+            FileReader read = new FileReader(inputFile);
+            BufferedReader br = new BufferedReader(read,10*1024 * 1024);
+            String row;
+ 
+            int num = 0;
+ 
+            int fileNo = 1;
+            FileWriter fw = new FileWriter(outputFile+fileNo +".csv");
+            while ((row = br.readLine()) != null) {
+                num =row.length() +num;
+                fw.append(row + "\r\n");
+                if((num / hash) > (fileNo - 1)){
+                    fw.close();
+                    fileNo ++ ;
+                    fw = new FileWriter(outputFile+fileNo +".csv");
+                }
+            }
+            fw.close();
+            System.out.println("fileNo="+fileNo);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
