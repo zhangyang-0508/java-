@@ -1,0 +1,21 @@
+1，idea新增项目
+2，配置g a v，项目命名
+3，配置
+server:
+  port: 8080
+  servlet:
+    context-path: /zy
+spring:
+  application:
+    name: zyDemo
+pom:
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>2.3.12.RELEASE</version>
+        </dependency>
+    </dependencies>
+ 到此为止，项目可以正常启动
+  
+      
