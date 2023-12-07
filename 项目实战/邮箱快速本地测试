@@ -5,6 +5,13 @@
             <version>5.8.16</version>
         </dependency>
 
+
+    <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+
 2.在classpath（在标准Maven项目中为src/main/resources）的config目录下新建mail.setting文件
 
 # 邮件服务器的SMTP地址，可选，默认为smtp.<发件人邮箱后缀>
