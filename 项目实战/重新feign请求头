@@ -1,0 +1,80 @@
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
+import com.yl.common.base.constant.PageCons;
+import com.yl.jms.basicdata.enums.HeaderParamEnum;
+import feign.RequestInterceptor;
+import feign.RequestTemplate;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.Enumeration;
+
+@Slf4j
+public class RequestHeaderInterceptorConfiguration implements RequestInterceptor {
+
+    public static String getRemoteAddr() {
+        try {
+            String remoteAddr = getRequest().getHeader("X-Real-IP");
+            if (StringUtils.isNotBlank(remoteAddr)) {
+                remoteAddr = getRequest().getHeader("X-Forwarded-For");
+            } else if (StringUtils.isNotBlank(remoteAddr)) {
+                remoteAddr = getRequest().getHeader("Proxy-Client-IP");
+            } else if (StringUtils.isNotBlank(remoteAddr)) {
+                remoteAddr = getRequest().getHeader("WL-Proxy-Client-IP");
+            }
+
+            return remoteAddr != null ? remoteAddr : getRequest().getRemoteAddr();
+        } catch (Exception var1) {
+            return "";
+        }
+    }
+
+    public static HttpServletRequest getRequest() {
+        try {
+            return ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        } catch (Exception var1) {
+            return null;
+        }
+    }
+
+    @Override
+    public void apply(RequestTemplate template) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            String values = request.getHeader(HeaderParamEnum.OAUTH_AUTHTOKEN.getName());
+            template.header(HeaderParamEnum.OAUTH_AUTHTOKEN.getName(), values);
+            template.header(HeaderParamEnum.LANG_TYPE.getName(), request.getHeader(HeaderParamEnum.LANG_TYPE.getName()));
+
+            Enumeration<String> headerNames = request.getHeaderNames();
+            if (headerNames != null) {
+                while (headerNames.hasMoreElements()) {
+                    String name = headerNames.nextElement();
+                    String v = request.getHeader(name);
+                    template.header(name, v);
+
+                }
+            }
+
+            String remoteAddr = getRemoteAddr();
+            log.info("远程地址:{}", remoteAddr);
+            if (StringUtils.isNotEmpty(remoteAddr)) {
+                template.query("request_ip", new String[]{remoteAddr});
+            }
+
+            if (request.getParameter(PageCons.PAGE_CURRENT) != null) {
+                if (CollectionUtils.isEmpty(template.queries().get(PageCons.PAGE_CURRENT))) {
+                    template.query(PageCons.PAGE_CURRENT, request.getParameter(PageCons.PAGE_CURRENT));
+                }
+            }
+            if (request.getParameter(PageCons.PAGE_SIZE) != null) {
+                if (CollectionUtils.isEmpty(template.queries().get(PageCons.PAGE_SIZE))) {
+                    template.query(PageCons.PAGE_SIZE, request.getParameter(PageCons.PAGE_SIZE));
+                }
+            }
+            log.debug("feign interceptor header:{}", template);
+        }
+    }
+}
