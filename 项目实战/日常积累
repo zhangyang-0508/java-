@@ -1,0 +1,1792 @@
+开发技巧
+hBmPJW4sTXcd
+1.Sql
+1.xml写法
+1.-- _ 和 % 需要加转义符\ 转移后\_ \%
+SELECT
+        id, dept_level_id, dept_level_name, en_name, cn_name, name
+    FROM sys_permission
+         where name like '%\_%' escape '\';
+         
+2.SELECT
+        id, dept_level_id, dept_level_name, en_name, cn_name, name
+    FROM sys_permission
+         where name like '%\%%' escape '\';
+2.复杂查询
+SELECT
+ sp.system_code systemCode,
+        sp.system_name systemName,
+        sp.catalog_code catalogCode,
+        sp.catalog_name catalogName,
+        sp.menu_code menuCode,
+        sp.menu_name menuName,
+        sp.NAME permissionName,
+        sp.dept_level_name ,
+        sr.NAME resourceName,
+CASE
+                
+                WHEN sr1.module_type = 4 THEN
+                sr1.`name` 
+                WHEN sr2.module_type = 4 THEN
+                sr2.`name` 
+                WHEN sr3.module_type = 4 THEN
+                sr3.`name` 
+                WHEN sr4.module_type = 4 THEN
+                sr4.`name` 
+        END AS button_name,
+sro.NAME roleName
+FROM
+        sys_permission sp,
+        sys_resource sr,
+        sys_resource sr1,
+        sys_resource sr2,
+        sys_resource sr3,
+        sys_resource sr4,
+        sys_permission_resource spr,
+        sys_role_permission srp,
+        sys_role sro 
+WHERE
+        sp.id = spr.permission_id 
+        AND sr.id = spr.resource_id 
+        AND sro.id = srp.role_id 
+        AND srp.permission_id = sp.id 
+        AND sr.module_type != 4 
+        AND sr.CODE = sr1.parent_code 
+        AND sr1.CODE = sr2.parent_code 
+        AND sr2.CODE = sr3.parent_code 
+        AND sr3.CODE = sr4.parent_code 
+        AND sp.is_delete = 1
+
+3.日期比较oracle(sql)
+select
+s.id,
+s.send_account sendAccount,
+s.account,
+s.network,
+s.msg,
+s.status,
+s.type,
+s.create_time createTime
+from sys_send_log s
+where
+1=1
+<if test="dto.startTime !=null and dto.startTime !='' ">
+    AND TO_CHAR(s.create_time,'yyyy-MM-dd HH:mm:ss') <![CDATA[>=]]> #{dto.startTime}
+</if>
+<if test="dto.endTime !=null and dto.endTime !='' ">
+    AND TO_CHAR(s.create_time,'yyyy-MM-dd HH:mm:ss') <![CDATA[<=]]> #{dto.endTime}
+</if>
+
+<if test="dto.account != null and dto.account != '' ">
+    and s.account=#{dto.account}
+</if>
+
+<if test="dto.network != null and dto.network!= ''  ">
+    and s.network = #{dto.network}
+</if>
+
+<if test="dto.status != null  and dto.status != ''">
+    and s.status = #{dto.status}
+</if>
+ORDER BY s.create_time DESC
+
+
+4.时间比较mysql（sql+mybatis-plus）
+#beginTime和endTime都是String类型的"2022-02-01"
+<if test = "beginTime !=null and beginTime !='' ">
+    AND DATE_FORMAT(c.CREATE_TIME,'%Y-%m-%d %H:%i:%s')  <![CDATA[>=]]> #{beginTime}
+</if>
+<if test = "endTime !=null and endTime !='' ">
+    AND DATE_FORMAT(c.CREATE_TIME,'%Y-%m-%d %H:%i:%s') <![CDATA[<=]]> #{endTime }
+</if>
+Mybatis-plus写法
+数据库为localDateTime类型，传参为： "endTime": "2023-04-30 10:40:20"
+.apply("UNIX_TIMESTAMP(create_time) >= UNIX_TIMESTAMP({0})", downloadRecord.getStartTime())
+.apply("UNIX_TIMESTAMP(create_time) <= UNIX_TIMESTAMP({0})", downloadRecord.getEndTime())
+5.嵌套查询和分页中1000限制处理
+  SELECT DISTINCT
+        sr.id id,
+        sr.dept_level_id deptLevelId,
+        sr.dept_level_name deptLevelName,
+        sr.menu_icon menuIcon,
+        sr.cn_name cnName,
+        sr.type type,
+        sr.en_name enName,
+        sr.NAME NAME,
+        sr.CODE CODE,
+        sr.parent_code parentCode,
+        sr.module_type moduleType,
+        sr.route_name routeName,
+        to_char(sr.menu_url) menuUrl,
+        sr.path,
+        sr.component,
+        sr.is_show isShow,
+        sr.sort
+        FROM
+        sys_permission sp
+        LEFT JOIN sys_permission_resource spr ON sp.id = spr.permission_id
+        LEFT JOIN sys_resource sr ON spr.resource_id = sr.id
+        WHERE
+        sp.id IN
+        <foreach collection="ids" index="index" open="(" separator="," close=")" item="item">
+            #{item}
+        </foreach>
+        AND sp.dept_level_id &lt;= sr.dept_level_id
+        AND sr.is_enable = 1
+        AND sr.is_delete = 1
+6.1000问题处理
+AND (s.network_id IN
+<foreach item="item" index="index" collection="dto.networkIds" open="(" close=")" >
+<if test="index != 0">
+    <choose>
+        <when test="index % 1000 == 999">) OR s.network_id IN (</when>
+        <otherwise>,</otherwise>
+    </choose>
+</if>
+    #{item}
+</foreach>
+)
+
+3.Sql写法
+1,oracle数据库id冲突
+查看当前所用序列
+select * from USER_SEQUENCES
+查看当前最大id
+select max(to_number(t.id)) from sys_role_permission t
+查看序列下一位
+SELECT  OAUTH_SQE.NEXTVAL FROM dual; 
+把序列增减或者减少
+alter sequence OAUTH_SQE increment BY 1166581
+
+2.修改表结构DDL：
+mysql 修改字段长度、数据类型工单，ddl后面加上 ", lock=none; " 。这样ddl不支持online会直接报错，避免锁表
+
+
+
+alter table sys_zt_menu modify column icon varchar(3000) ;  mysql
+alter table sys_zt_menu modify ( icon NVARCHAR2(2000)) ;  oracle
+
+更新字段和插入字段
+alter table sys_zt_menu_user_collect add (type NUMBER(11,0) default 0 )
+ALTER TABLE sys_user ADD (country_id NUMBER(11,0) default 0) 
+ALTER TABLE sys_user ADD (country_code varchar(50) DEFAULT NULL)
+ALTER TABLE sys_user ADD (country_desc varchar(50) DEFAULT NULL)
+修改字段长度
+ALTER TABLE SYS_USER  
+MODIFY (STAFF_NO NVARCHAR2(100) );
+
+ALTER TABLE SYS_USER  
+MODIFY (NAME NVARCHAR2(100) );
+
+ALTER TABLE SYS_USER  
+MODIFY (EN_NAME NVARCHAR2(100) );
+
+ALTER TABLE SYS_USER  
+MODIFY (CN_NAME NVARCHAR2(100) );
+
+Mysql版本：
+ALTER TABLE SYS_USER  
+MODIFY column DEPT_NAME VARCHAR(100) ;
+
+ALTER TABLE SYS_USER  
+MODIFY column POST_NAME VARCHAR(100) ;
+ALTER TABLE SYS_TASK  
+MODIFY column  FILE_URL VARCHAR(1000);
+
+ALTER TABLE SYS_TASK  
+MODIFY  column  TASK_URL VARCHAR(1000);
+
+alter table  sys_zt_menu rename column DEPT_LEVEL_ID to DEPT_LEVEL_ID_TMP;
+alter table sys_zt_menu add DEPT_LEVEL_ID varchar2(40);
+update sys_zt_menu set DEPT_LEVEL_ID=trim(DEPT_LEVEL_ID_TMP);
+alter table sys_zt_menu drop column DEPT_LEVEL_ID_TMP;
+
+3.update语句DML
+UPDATE SYS_USER SET  PASSWORD='c7a5abffb89e01c50277fc9fbcc81f45',PASSWORD_SALT='KFt-E-e$mf',APP_PASSWORD='c7a5abffb89e01c50277fc9fbcc81f45',IS_INITIALIZATION =1,APP_IS_INITIALIZATION=1 where STAFF_NO in ('zhangyang')
+
+批量修改 包含日期处理
+select*from sys_user where post_name = '司机' and update_time >=to_date('2022-06-21','yyyy-mm-dd')
+
+Update sys_user set PASSWORD_SALT='rOF2X$I2#F',APP_PASSWORD='384fcc3e05ce12f271927f0cb18c5c3d',IS_INITIALIZATION =1,APP_IS_INITIALIZATION=1 where post_name = '司机' and update_time =to_date('2022-06-27','yyyy-mm-dd')
+
+密码重置为Jt666888
+update sys_user set PASSWORD_SALT='rOF2X$I2#F',PASSWORD='aef6a7984c32a949da12c87dcd5245af',IS_INITIALIZATION =1,APP_IS_INITIALIZATION=1 where STAFF_NO in('zhangyang')
+
+密码重置为Aa123123
+UPDATE SYS_USER SET PASSWORD='0f21fe12069a439aea2c4bf28981a3b0',PASSWORD_SALT='rOF2X$I2#F',IS_INITIALIZATION =1,APP_IS_INITIALIZATION=1 where STAFF_NO in('PJ010888')
+
+解禁
+  update SYS_USER set IS_ENABLE=1 ,LAST_LOGIN_TIME =  to_date('2023-05-14','yyyy-mm-dd') where  staff_no = 'zhangyang'
+
+select username,count(username) from v$session where username is not null group by username;
+
+select * from sys_user where post_name = '司机' and update_time >=to_date('2022-06-21','yyyy-mm-dd')
+
+update sys_user set PASSWORD_SALT='rOF2X$I2#F',APP_PASSWORD='384fcc3e05ce12f271927f0cb18c5c3d',IS_INITIALIZATION =1,APP_IS_INITIALIZATION=1 where post_name = '司机' and update_time =to_date('2022-06-27','yyyy-mm-dd')
+
+根据一个表更新另一个表（将网点的id同步到sys_send_Log表）
+Update sys_send_log
+set network_id=(select id from sys_network where sys_send_log.network=sys_network.code )
+WHERE sys_send_log.id in (
+    SELECT sys_send_log.id FROM sys_send_log
+    INNER JOIN sys_network ON sys_network.code=sys_send_log.network 
+
+两个表取差集（sys_staff有，sys_user没有）
+select count(1) from sys_staff a where not exists (select * from sys_user b where a.code = b.staff_no)
+
+用户重置密码为Aa123123
+UPDATE SYS_USER SET APP_PASSWORD='0f21fe12069a439aea2c4bf28981a3b0',PASSWORD_SALT='rOF2X$I2#F',APP_IS_INITIALIZATION=1 , IS_ENABLE=1 ,LAST_LOGIN_TIME =  to_date('2023-01-12','yyyy-mm-dd') where STAFF_NO in('202002015',
+'202004021',
+'602170001',
+'615926023',
+'615926024') or staff_no in(
+'802051202')
+
+拼接字段
+UPDATE sys_resource SET menu_url = concat(menu_url,'/oauth/sysResource/migration')where name like '菜单管理(内部)' 
+
+
+4.INSERT语句DML
+
+insert into sys_user_role (id,user_id,role_id) values(OAUTH_SQE.nextval,(select id from sys_user where staff_no = '024A03041950'),(select id from sys_role where name = '收派员'));
+
+Oracle插入
+INSERT INTO SYS_RESOURCE (ID, TYPE_ID, CODE, DEPT_LEVEL_ID, MENU_ICON, CN_NAME, TYPE, EN_NAME, NAME, PARENT_CODE, SYS_CODE, MODULE_TYPE, ROUTE_NAME, MENU_URL, PATH, COMPONENT, IS_ENABLE, IS_DELETE, IS_SHOW, CREATE_BY, UPDATE_BY, CREATE_BY_NAME, UPDATE_BY_NAME, CREATE_TIME, UPDATE_TIME, VERSION, SORT) VALUES (4649,2,N'DCYT',336,NULL,N'到出一体',NULL,N'DCYT',N'到出一体',NULL,N'DCYT',3,NULL,'/bc/scanList/uploadUnloadingArrivalDeliveryData',NULL,NULL,1,1,1,0,0,N'系统',N'系统',to_date('2020-03-24 16:32:01', 'YYYY-MM-DD:HH24:MI:SS'),to_date('2021-03-23 20:36:27', 'YYYY-MM-DD:HH24:MI:SS'),N'0',70);
+
+插入账户Oracle/管理员
+INSERT INTO UAT_YMS.SYS_USER (ID, STAFF_NO, NAME, EN_NAME, CN_NAME, SEX, USER_TYPE, NETWORK_ID, NETWORK_NAME, DEPT_ID,
+DEPT_NAME, POST_ID, POST_NAME, MOBILE, EMAIL, IS_INITIALIZATION, APP_IS_INITIALIZATION,
+PHONE, REMARK, PASSWORD, APP_PASSWORD, MAC_ADDR, CONFIG_COLOR, CONFIG_LANGUAGE, IS_ENABLE,
+IS_DELETE, CREATE_BY, UPDATE_BY, CREATE_BY_NAME, UPDATE_BY_NAME, CREATE_TIME, UPDATE_TIME,
+VERSION, SORT, DEPT_LEVEL_ID, NETWORK_CODE, DEPT_LEVEL_NAME, SITE_LOGIN_FLAG,
+PASSWORD_SALT, POST_CODE, PC_LOGIN_DEVICE, UPDATE_PASSWORD_TIME, LAST_LOGIN_TIME,
+INCUMBENCY_STATUS, ALERT_MSG, MSG_AUDIO, POSITION)
+VALUES (1, 'sysadmin', 'sysadmin', null, null, 1, 2, 22, '总部', 126, '信息科技中心', 188, '信息总监', '1234567890123',
+null, 2, 1, null, null, '1c07ba428efba45be3f9aaaecee01140', '92480a5bdc7b91a9d42d5a2c6a3ba46c', null,
+'default-theme', 'CN', 1, 1, 4, 985968, 'admin2', 'sysadmin',
+TO_DATE('2021-12-15 15:09:27', 'YYYY-MM-DD HH24:MI:SS'),
+TO_DATE('2022-01-07 18:23:48', 'YYYY-MM-DD HH24:MI:SS'), '0', 0, 22, '001188', '总部', 0, 'D(QuDwvy)9', '564',
+'222.71.40.154', TO_DATE('2022-01-05 18:01:19', 'YYYY-MM-DD HH24:MI:SS'),
+TO_DATE('2022-01-07 18:23:48', 'YYYY-MM-DD HH24:MI:SS'), 1, null, null, null);
+
+插入数据mysql
+INSERT INTO `` (`id`,`staff_no`,`name`,`en_name`,`cn_name`,`sex`,`user_type`,`network_id`,`network_name`,`dept_id`,`dept_name`,`post_id`,`post_name`,`mobile`,`email`,`is_initialization`,`app_is_initialization`,`phone`,`remark`,`password`,`app_password`,`mac_addr`,`web_mac_addr`,`config_color`,`config_language`,`is_enable`,`is_delete`,`create_by`,`update_by`,`create_by_name`,`update_by_name`,`create_time`,`update_time`,`version`,`sort`,`dept_level_id`,`network_code`,`dept_level_name`,`site_login_flag`,`password_salt`,`post_code`,`pc_login_device`,`update_password_time`,`last_login_time`,`incumbency_status`,`alert_msg`,`msg_audio`,`position`) VALUES (1247,'yangzhilong','yangzhilong','','',1,2,22,'总部',158,'IT组',180,'IT支持主管','15012895422','',02,1,'',NULL,'dd031ec82a6ed3ae29586ddeed5f186b','dd031ec82a6ed3ae29586ddeed5f186b','615c9367c26fefe867897633a6d3124b',NULL,'default','CN',1,1,32,1247,'管理员/J012019000006','yangzhilong/yangzhilong','2019-07-04 08:11:57','2021-11-01 18:03:26','0',0,22,'22','网点',1,'lh&FUxlQrH','0122','10.66.21.64','2021-04-14 17:18:12','2021-05-27 14:20:58',2,2,2,NULL);
+
+插入oracle账号 zhangyang/Jt666888
+INSERT INTO UAT_YMS.SYS_USER (ID, STAFF_NO, NAME, EN_NAME, CN_NAME, SEX, USER_TYPE, NETWORK_ID, NETWORK_NAME, DEPT_ID,
+DEPT_NAME, POST_ID, POST_NAME, MOBILE, EMAIL, IS_INITIALIZATION, APP_IS_INITIALIZATION,
+PHONE, REMARK, PASSWORD, APP_PASSWORD, MAC_ADDR, CONFIG_COLOR, CONFIG_LANGUAGE, IS_ENABLE,
+IS_DELETE, CREATE_BY, UPDATE_BY, CREATE_BY_NAME, UPDATE_BY_NAME, CREATE_TIME, UPDATE_TIME,
+VERSION, SORT, DEPT_LEVEL_ID, NETWORK_CODE, DEPT_LEVEL_NAME, SITE_LOGIN_FLAG,
+PASSWORD_SALT, POST_CODE, PC_LOGIN_DEVICE, UPDATE_PASSWORD_TIME, LAST_LOGIN_TIME,
+INCUMBENCY_STATUS, ALERT_MSG, MSG_AUDIO, POSITION)
+VALUES (1, 'zhangyang', 'zhangyang', null, null, 1, 2, 22, '总部', 126, '信息科技中心', 188, '信息总监', '1234567890123',
+null, 2, 1, null, null, '384fcc3e05ce12f271927f0cb18c5c3d', '384fcc3e05ce12f271927f0cb18c5c3d', null,
+'default-theme', 'CN', 1, 1, 4, 985968, 'admin2', 'sysadmin',
+TO_DATE('2021-12-15 15:09:27', 'YYYY-MM-DD HH24:MI:SS'),
+TO_DATE('2022-01-07 18:23:48', 'YYYY-MM-DD HH24:MI:SS'), '0', 0, 22, '001188', '总部', 0, 'rOF2X$I2#F', '564',
+'222.71.40.154', TO_DATE('2022-01-05 18:01:19', 'YYYY-MM-DD HH24:MI:SS'),
+TO_DATE('2022-01-07 18:23:48', 'YYYY-MM-DD HH24:MI:SS'), 1, null, null, null);
+
+沙特内外场app插入菜单
+INSERT INTO sys_resource ( type_id, code, dept_level_id, dept_level_name, menu_icon, cn_name, `TYPE`, en_name, name, parent_code, sys_code, module_type, route_name, menu_url, `PATH`, component, is_enable, is_delete, is_show, create_by, update_by, create_by_name, update_by_name, create_time, update_time, version, sort) VALUES ( 2, 'hgfx', 336, '网点', NULL, '海关放行', NULL, 'hgfx', '海关放行', '', 'hgfx', 3, NULL, '/bc/scanList/uploadExpressCollectionData', NULL, NULL, 1, 1, 1, 0, 0, '系统', '系统', '2022-08-01 15:10:47', '2022-08-01 15:12:29', '0', 0),( 2, 'gjsj', 336, '网点', NULL, '国际收件', NULL, 'gjsj', '国际收件', '', 'hgfx', 3, NULL, '/bc/intScan/uploadReceiptData', NULL, NULL, 1, 1, 1, 0, 0, '系统', '系统', '2022-08-01 15:10:47', '2022-08-01 15:12:29', '0', 0);
+
+两个表插入：
+ insert into sys_role_network (role_id,network_id,network_name) select id,network_id,network_name from sys_role where id is not null AND network_id is not null  AND network_name is not null
+
+
+4.SELECT语句DML
+5.总结：Oracle用group by 分组
+6.有一个规则需要遵守，即出现在select列表中的字段，如果没有在组函数中，那么必须出现在group by 子句中。（select中的字段不可以单独出现，必须出现在group语句中或者在组函数中。）
+7.否则就会出现错误。
+
+1.递归查：
+select * from sys_resource where type_id =1 and sort is not null
+ start with code = #{code}
+ connect by prior code = parent_code
+
+2.Jms查询菜单
+select DISTINCT   s1.name as 一级菜单,s2.name as 二级菜单, s3.name as 三级菜单, null as 四级菜单 ,s3.code as 菜单code,s3.route_name as 菜单路由, to_char(s3.menu_url)   as 菜单地址
+from sys_resource s1,sys_resource s2, sys_resource s3 ,sys_resource s4
+where s1.code = s2.parent_code and s2.code = s3.parent_code  and s3.code = s4.parent_code
+and s1.module_type = 1 and s2.module_type = 2 and s3.module_type = 3  and s4.module_type =4
+and s1.type_id = 1 and s2.type_id = 1 and s3.type_id = 1 and s4.type_id = 1
+UNION 
+select DISTINCT  s1.name as 一级菜单, s2.name as 二级菜单, s3.name as 三级菜单 , s4.name as 四级菜单,s3.code as 菜单code,s3.route_name as 菜单路由,to_char(s3.menu_url)   as 菜单地址
+from sys_resource s1,sys_resource s2,sys_resource s3,sys_resource s4,sys_resource s5
+where s1.code = s2.parent_code and s2.code = s3.parent_code and s3.code = s4.parent_code and s4.code = s5.parent_code
+and s1.module_type = 1 and s2.module_type = 2 and s3.module_type = 3  
+and s1.type_id = 1 and s2.type_id = 1 and s3.type_id = 1 
+UNION 
+select DISTINCT   s1.name as 一级菜单,s2.name as 二级菜单, s3.name as 三级菜单, null as 四级菜单,s3.code as 菜单code,s3.route_name as 菜单路由,to_char(s3.menu_url)   as 菜单地址
+from sys_resource s1,sys_resource s2, sys_resource s3 
+where s1.code = s2.parent_code and s2.code = s3.parent_code  
+and s1.module_type = 1 and s2.module_type = 2 and s3.module_type = 3  
+and s1.type_id = 1 and s2.type_id = 1 and s3.type_id = 1 
+
+
+生产导出所有菜单：
+SELECT DISTINCT s1.name AS 一级菜单,
+         s2.name AS 二级菜单,
+         s3.name AS 三级菜单 ,
+         s4.name AS 四级菜单,
+         s5.name 五级菜单
+    FROM sys_resource s1,sys_resource s2,sys_resource s3,sys_resource s4,sys_resource s5
+WHERE s1.code = s2.parent_code
+        AND s2.code = s3.parent_code
+        AND s3.code = s4.parent_code
+        AND s4.code = s5.parent_code
+        AND s1.module_type = 1
+        AND s2.module_type = 2
+        AND s3.module_type = 2
+        AND s4.module_type = 3
+        AND s5.module_type = 4
+        AND s1.type_id = 1
+        AND s2.type_id = 1
+        AND s3.type_id = 1
+UNION
+SELECT DISTINCT s1.name AS 一级菜单,
+         s2.name AS 二级菜单,
+         s3.name AS 三级菜单,
+         NULL AS 四级菜单 ,
+         s4.name 五级菜单
+FROM sys_resource s1,sys_resource s2, sys_resource s3 ,sys_resource s4
+WHERE s1.code = s2.parent_code
+        AND s2.code = s3.parent_code
+        AND s3.code = s4.parent_code
+        AND s1.module_type = 1
+        AND s2.module_type = 2
+        AND s3.module_type = 3
+        AND s4.module_type =4
+        AND s1.type_id = 1
+        AND s2.type_id = 1
+        AND s3.type_id = 1
+        AND s4.type_id = 1       
+UNION
+SELECT DISTINCT s1.name AS 一级菜单,
+         s2.name AS 二级菜单,
+         s3.name AS 三级菜单,
+        NULL AS 四级菜单 ,
+         NULL AS 五级菜单
+FROM sys_resource s1,sys_resource s2, sys_resource s3
+WHERE s1.code = s2.parent_code
+        AND s2.code = s3.parent_code
+        AND s1.module_type = 1
+        AND s2.module_type = 2
+        AND s3.module_type = 3
+        AND s1.type_id = 1
+        AND s2.type_id = 1
+        AND s3.type_id = 1
+        AND s3.code not in(select parent_code from sys_resource where module_type =4)
+
+
+
+查询用户菜单
+select DISTINCT su.staff_no 用户编号,su.name 用户名,CASE WHEN su.user_type ='1' THEN '员工' ELSE '管理员' END AS 用户类型,su.mobile 手机号,su.network_code 网点编码,su.network_name 网点名称,su.dept_name 部门名称, su.post_code 岗位编码,su.post_name 岗位名称, CASE WHEN su.is_enable ='1' THEN '启用' ELSE '禁用' END AS 是否启用,CASE WHEN su.incumbency_status='1' THEN '在职' ELSE '离职' END AS 在职状态,su.create_time 创建时间,su.update_time 修改时间 ,su.last_login_time 最后登录时间, srr.oneResource 一级菜单 ,srr.twoResource 二级菜单, srr.threeResource 三级菜单,srr.fourResource 四级菜单,srr.buttonPermission 按钮权限 from sys_user su,sys_user_role sur, sys_role sr ,sys_role_permission srp ,sys_permission sp ,sys_permission_resource spr , (select DISTINCT s1.name as oneResource, s2.name as twoResource, s3.name as threeResource , s4.name as fourResource,GROUP_CONCAT(s5.name ORDER BY s5.name SEPARATOR ',') AS buttonPermission,s4.id allresourceId from sys_resource s1,sys_resource s2,sys_resource s3,sys_resource s4,sys_resource s5 where s1.code = s2.parent_code and s2.code = s3.parent_code and s3.code = s4.parent_code and s4.code = s5.parent_code and s1.module_type = 1 and s2.module_type = 2 and s3.module_type = 2 and s4.module_type = 3 and s5.module_type = 4 and s1.type_id = 1 and s2.type_id = 1 and s3.type_id = 1 group by s4.name UNION select DISTINCT s1.name as oneResource,s2.name as twoResource, s3.name as threeResource, null as fourResource ,GROUP_CONCAT(s4.name ORDER BY s4.name SEPARATOR ',') as buttonPermission,s3.id allresourceId from sys_resource s1,sys_resource s2, sys_resource s3 ,sys_resource s4 where s1.code = s2.parent_code and s2.code = s3.parent_code and s3.code = s4.parent_code and s1.module_type = 1 and s2.module_type = 2 and s3.module_type = 3 and s4.module_type =4 and s1.type_id = 1 and s2.type_id = 1 and s3.type_id = 1 and s4.type_id = 1 group by s3.name ) srr where su.id = sur.user_id and sur.role_id = sr.id and sr.id = srp.role_id and srp.permission_id = sp.id and sp.id = spr.permission_id and spr.resource_id = srr.allresourceId and sr.type_id = 1 and su.staff_no = 'liuweiwangT' order by su.name
+
+
+
+查询角色和菜单
+SELECT DISTINCT sr.name 角色名称,
+         srr.oneResource 一级菜单 ,
+        srr.twoResource 二级菜单,
+         srr.threeResource 三级菜单,
+        srr.fourResource 四级菜单,
+         
+    (SELECT GROUP_CONCAT(distinct sr6.name
+    ORDER BY  sr6.name SEPARATOR ',' )
+    FROM sys_permission sp6, sys_permission_resource spr6, sys_resource sr6
+    WHERE sp6.id = sp.id
+            AND sp6.id = spr6.permission_id
+            AND spr6.resource_id = sr6.id
+            AND sr6.module_type = 4) AS 按钮权限
+FROM sys_role sr ,sys_role_permission srp ,sys_permission sp ,sys_permission_resource spr , 
+    (SELECT DISTINCT s1.name AS oneResource,
+         s2.name AS twoResource,
+         s3.name AS threeResource ,
+         s4.name AS fourResource,
+        s4.id allresourceId,
+         s4.code resourceCode,
+         s5.name buttonName
+    FROM sys_resource s1,sys_resource s2,sys_resource s3,sys_resource s4,sys_resource s5
+    WHERE s1.code = s2.parent_code
+            AND s2.code = s3.parent_code
+            AND s3.code = s4.parent_code
+            AND s4.code = s5.parent_code
+            AND s1.module_type = 1
+            AND s2.module_type = 2
+            AND s3.module_type = 2
+            AND s4.module_type = 3
+            AND s5.module_type = 4
+            AND s1.type_id = 1
+            AND s2.type_id = 1
+            AND s3.type_id = 1
+    UNION
+    SELECT DISTINCT s1.name AS oneResource,
+        s2.name AS twoResource,
+         s3.name AS threeResource,
+         NULL AS fourResource ,
+        s3.id allresourceId,
+         s3.code resourceCode,
+         s4.name buttonName
+    FROM sys_resource s1,sys_resource s2, sys_resource s3 ,sys_resource s4
+    WHERE s1.code = s2.parent_code
+            AND s2.code = s3.parent_code
+            AND s3.code = s4.parent_code
+            AND s1.module_type = 1
+            AND s2.module_type = 2
+            AND s3.module_type = 3
+            AND s4.module_type =4
+            AND s1.type_id = 1
+            AND s2.type_id = 1
+            AND s3.type_id = 1
+            AND s4.type_id = 1
+    UNION
+    SELECT DISTINCT s1.name AS oneResource,
+        s2.name AS twoResource,
+         s3.name AS threeResource,
+         NULL AS fourResource ,
+        s3.id allresourceId,
+         s3.code resourceCode,
+         NULL AS buttonName
+    FROM sys_resource s1,sys_resource s2, sys_resource s3
+    WHERE s1.code = s2.parent_code
+            AND s2.code = s3.parent_code
+            AND s1.module_type = 1
+            AND s2.module_type = 2
+            AND s3.module_type = 3
+            AND s1.type_id = 1
+            AND s2.type_id = 1
+            AND s3.type_id = 1 ) srr
+WHERE sr.id = srp.role_id
+        AND srp.permission_id = sp.id
+        AND sp.id = spr.permission_id
+        AND spr.resource_id = srr.allresourceId
+        AND sp.menu_code = srr.resourceCode
+        AND sr.name = '测试导数'
+        AND sr.type_id = 1
+ORDER BY  sr.name
+
+
+查询1234级菜单
+SELECT DISTINCT s1.name AS 一级菜单, s1.create_by_name 一级菜单创建人, s1.create_time 一级菜单创建时间, s2.name AS 二级菜单, s2.create_by_name 二级菜单创建人, s2.create_time 二级菜单创建时间, s3.name AS 三级菜单 , s3.create_by_name 三级菜单创建人, s3.create_time 三级菜单创建时间, s4.name AS 四级菜单, s4.create_by_name 四级菜单创建人, s4.create_time 四级菜单创建时间 FROM sys_resource s1,sys_resource s2,sys_resource s3,sys_resource s4 WHERE s1.code = s2.parent_code AND s2.code = s3.parent_code AND s3.code = s4.parent_code AND s1.module_type = 1 AND s2.module_type = 2 AND s3.module_type = 2 AND s4.module_type = 3 AND s1.type_id = 1 AND s2.type_id = 1 AND s3.type_id = 1 UNION SELECT DISTINCT s1.name AS 一级菜单, s1.create_by_name 一级菜单创建人, s1.create_time 一级菜单创建时间, s2.name AS 二级菜单, s2.create_by_name 二级菜单创建人, s2.create_time 二级菜单创建时间, s3.name AS 三级菜单, s2.create_by_name 三级菜单创建人, s2.create_time 三级菜单创建时间, NULL AS 四级菜单 , NULL 四级菜单创建人, NULL 四级菜单创建时间 FROM sys_resource s1,sys_resource s2, sys_resource s3 ,sys_resource s4 WHERE s1.code = s2.parent_code AND s2.code = s3.parent_code AND s1.module_type = 1 AND s2.module_type = 2 AND s3.module_type = 3 AND s1.type_id = 1 AND s2.type_id = 1 AND s3.type_id = 1 UNION SELECT DISTINCT s1.name AS 一级菜单, s1.create_by_name 一级菜单创建人, s1.create_time 一级菜单创建时间, s2.name AS 二级菜单, s2.create_by_name 二级菜单创建人, s2.create_time 二级菜单创建时间, s3.name AS 三级菜单, s2.create_by_name 三级菜单创建人, s2.create_time 三级菜单创建时间, NULL AS 四级菜单 , NULL 四级菜单创建人, NULL 四级菜单创建时间 FROM sys_resource s1,sys_resource s2, sys_resource s3 WHERE s1.code = s2.parent_code AND s2.code = s3.parent_code AND s1.module_type = 1 AND s2.module_type = 2 AND s3.module_type = 3 AND s1.type_id = 1 AND s2.type_id = 1 AND s3.type_id = 1 AND s3.code not in(select parent_code from sys_resource where module_type =4)
+
+智兔菜单含四级：
+SELECT '智兔app系统'系统 , sar1.code 一级菜单code , sar1.name 一级菜单名称,sar1.create_by_name 一级菜单创建人,sar1.create_time 一级菜单创建时间, sar2.code 二级菜单code，sar2.name 二级菜单名称, sar2.create_by_name 二级菜单创建人,sar2.create_time 二级菜单创建时间, sar3.code 三级菜单code，sar3.name 三级菜单名称, sar3.create_by_name 三级菜单创建人,sar3.create_time 三级菜单创建时间, sar4.code 四级菜单code，sar4.name 四级菜单名称, sar4.create_by_name 四级菜单创建人,sar4.create_time 四级菜单创建时间 FROM sys_app_resource sar1,sys_app_resource sar2,sys_app_resource sar3,sys_app_resource sar4 WHERE sar1.code = sar2.PARENT_CODE AND sar2.code = sar3.PARENT_CODE AND sar3.code = sar4.PARENT_CODE AND sar1.type_id = 7 AND sar2.type_id = 7 AND sar3.type_id = 7 AND sar4.type_id = 7 AND sar1.type = 1 AND sar2.type = 2 AND sar3.type = 3 AND sar4.type = 4 UNION SELECT DISTINCT '智兔app系统'系统 , sar1.code 一级菜单code , sar1.name 一级菜单名称,sar1.create_by_name 一级菜单创建人,sar1.create_time 一级菜单创建时间, sar2.code 二级菜单code，sar2.name 二级菜单名称, sar2.create_by_name 二级菜单创建人,sar2.create_time 二级菜单创建时间, sar3.code 三级菜单code，sar3.name 三级菜单名称, sar3.create_by_name 三级菜单创建人,sar3.create_time 三级菜单创建时间, NULL AS 四级菜单code，null AS 四级菜单名称, NULL AS 四级菜单创建人,null AS 四级菜单创建时间 FROM sys_app_resource sar1,sys_app_resource sar2,sys_app_resource sar3 WHERE sar1.code = sar2.PARENT_CODE AND sar2.code = sar3.PARENT_CODE AND sar1.type_id = 7 AND sar2.type_id = 7 AND sar3.type_id = 7 AND sar1.type = 1 AND sar2.type = 2 AND sar3.type = 3 UNION SELECT DISTINCT '智兔app系统'系统 , sar1.code 一级菜单code , sar1.name 一级菜单名称,sar1.create_by_name 一级菜单创建人,sar1.create_time 一级菜单创建时间, sar2.code 二级菜单code，sar2.name 二级菜单名称, sar2.create_by_name 二级菜单创建人,sar2.create_time 二级菜单创建时间, NULL AS 三级菜单code，null AS 三级菜单名称, NULL AS 三级菜单创建人,null AS 三级菜单创建时间, NULL AS 四级菜单code，null AS 四级菜单名称, NULL AS 四级菜单创建人,null AS 四级菜单创建时间 FROM sys_app_resource sar1,sys_app_resource sar2 WHERE sar1.code = sar2.PARENT_CODE AND sar1.type_id = 7 AND sar2.type_id = 7 AND sar1.type = 1 AND sar2.type = 2
+
+智兔一二级：
+ELECT DISTINCT sar1.code 一级菜单code, sar1.name 一级菜单名称,sar1.create_by_name 一级菜单创建人,sar1.create_time 一级菜单创建时间, sar2.code 二级菜单code,sar2.name 二级菜单名称,sar2.create_by_name 二级菜单创建人,sar2.create_time 二级菜单创建时间, NULL AS 三级菜单code,null AS 三级菜单名称, NULL AS 三级菜单创建人,null AS 三级菜单创建时间 FROM sys_app_resource sar1,sys_app_resource sar2 WHERE sar1.code = sar2.PARENT_CODE AND sar1.type = 1 AND sar2.type = 2 AND sar1.type_id = 7 AND sar2.type_id = 7
+
+
+3.登录时获取用户资源：
+SELECT DISTINCT
+            sr.id id,
+            sr.dept_level_id deptLevelId,
+            sr.dept_level_name deptLevelName,
+            sr.menu_icon menuIcon,
+            sr.cn_name cnName,
+            sr.type type,
+            sr.en_name enName,
+            sr.NAME NAME,
+            sr.CODE CODE,
+            sr.parent_code parentCode,
+            sr.module_type moduleType,
+            sr.route_name routeName,
+            to_char(sr.menu_url) menuUrl,
+            sr.path,
+            sr.component,
+            sr.is_show isShow,
+            sr.sort
+        FROM
+            sys_user_role sur
+                LEFT JOIN sys_role srole ON sur.role_id = srole.id
+                LEFT JOIN sys_role_permission srp ON srole.id = srp.role_id
+                LEFT JOIN sys_permission sp ON srp.permission_id = sp.id
+                LEFT JOIN sys_permission_resource spr ON sp.id = spr.permission_id
+                LEFT JOIN sys_resource sr ON spr.resource_id = sr.id
+        WHERE
+            sur.user_id = 2016716682
+          AND 22<= srole.dept_level_id
+          AND srole.dept_level_id <= sp.dept_level_id
+          AND sp.dept_level_id <= sr.dept_level_id
+          AND sr.is_enable = 1
+          AND sr.is_delete = 1
+
+
+
+3.查询角色，权限项，菜单，按钮
+select sr.role_code 角色编码,sr.name 角色名称, sp.name 权限项名称,srr.name 菜单名称,srr1.name 按钮
+from
+sys_role sr,sys_role_permission srp ,sys_permission sp,sys_permission_resource spr,sys_resource srr,sys_resource srr1 
+where
+sr.id = srp.role_id
+and
+srp.permission_id = sp.id
+and
+sp.id = spr.permission_id
+and
+spr.resource_id = srr.id
+and
+srr.code = srr1.parent_code
+and
+srr.module_type = 3 
+and
+srr1.module_type=4
+and 
+sr.type_id = 1
+and
+sr.role_code in ('AG0000009')
+
+查询菜单：
+select sr.code 菜单编码, 
+sr.name 菜单名称,
+sr.parent_code 父级菜单code,
+(select name from sys_app_resource where code = sr.parent_code) 父级菜单名称,
+sr.name 菜单名称,
+CASE 
+WHEN sr.type = '1' THEN '一级菜单' 
+WHEN sr.type = '2' THEN '二级菜单' 
+ELSE '三级菜单' 
+END AS 菜单类型,
+sr.dept_level_id 菜单机构级别,
+CASE WHEN sr.card = '1' THEN '是' ELSE '否' END AS 是否卡片
+from 
+sys_app_resource sr
+where type_id = 7
+and code not like '%test%'
+and name not like '%test%'
+and name not like '%测试%'
+
+
+
+select sr.code 菜单编码, 
+sr.name 菜单名称,
+sr.parent_code 父级菜单code,
+(select name from sys_zt_menu where code = sr.parent_code) 父级菜单名称,
+CASE 
+WHEN sr.type = '1' THEN '一级菜单' 
+WHEN sr.type = '2' THEN '二级菜单' 
+ELSE '三级菜单' 
+END AS 菜单类型,
+sr.dept_level_id 菜单机构级别,
+CASE WHEN sr.card = '1' THEN '是' ELSE '否' END AS 是否卡片
+from 
+sys_zt_menu sr 
+where code not like '%test%'
+and name not like '%test%'
+and name not like '%测试%'
+
+5.自定义查询结果
+select 
+su.staff_no 用户编号,
+su.name 用户姓名,
+CASE WHEN su.user_type ='1' THEN '员工' ELSE '管理员' END AS 用户类型,
+su.mobile 手机号码,
+su.network_name 网点名称,
+su.dept_name 部门,
+su.post_name 岗位,
+CASE WHEN su.is_enable ='1' THEN '启用' ELSE '禁用' END AS 是否启用,
+su.incumbency_status 在职状态,
+su.create_time 创建时间,
+su.update_time 修改时间
+from 
+sys_user  su
+
+对查询结果再查询
+select sr.role_code 角色编码,sr.name 角色名称,(select name from sys_resource where code = sp.system_code) 系统,(select name from sys_resource where code = sp.catalog_code) 目录, sp.name 权限项名称,srr.name 菜单名称,srr1.name 按钮
+from
+sys_role sr,sys_role_permission srp ,sys_permission sp,sys_permission_resource spr,sys_resource srr,sys_resource srr1 
+where
+sr.id = srp.role_id
+and
+srp.permission_id = sp.id
+and
+sp.id = spr.permission_id
+and
+spr.resource_id = srr.id
+and
+srr.code = srr1.parent_code
+and
+srr.module_type = 3 
+and
+srr1.module_type=4
+and 
+sr.type_id = 1
+and
+sr.role_code in ('DataCockpit')
+
+
+
+查询含日期数据
+select count(to_char(last_login_time,'yyyy-mm-dd')),to_char(last_login_time,'yyyy-mm-dd') 
+from sys_user where  post_code = '04'  
+and last_login_time >to_date('2022-12-01','yyyy-mm-dd') 
+and is_enable = 1 
+and incumbency_status =1 
+group by to_char(last_login_time,'yyyy-mm-dd') 
+order by count(*) desc	
+
+查用户：
+select staff_no 用户编号,name 用户姓名,CASE WHEN user_type ='1' THEN '员工' ELSE '管理员' END AS 用户类型,mobile 手机号码,network_name 网点名称,dept_name 部门,post_name 岗位,CASE WHEN is_enable ='1' THEN '启用' ELSE '禁用' END AS 是否启用,   CASE WHEN incumbency_status ='1' THEN '在职' ELSE '离职' END AS 在职状态 from sys_user   
+6.查询两表
+select A.code from sys_staff A where  A.code not in (select staff_no from sys_user)
+
+Oracle查询差集，A比B多的
+select staff_no from sys_user where id in(select su.id from sys_user  su
+MINUS
+select sur.user_id from sys_user_role sur where sur.role_id = 1)
+7.插入数据（oracle）
+insert into sys_user_role (id,user_id,role_id) values(OAUTH_SQE.nextval,(select id from sys_user where staff_no = '024A03041950'),(select id from sys_role where name = '收派员'));
+
+8，查询条件多表联查，拼接
+
+SELECT su.staff_no 用户编号,
+        tb_jms.tb_name jms角色,
+        tb_app.tb_name app角色,
+        tb_pc.tb_name pc角色
+FROM sys_user su
+LEFT JOIN 
+    (SELECT su.staff_no tb_staff_no,
+         LISTAGG(sr.name,
+        ';') WITHIN GROUP (ORDER BY sr.name) AS tb_name
+    FROM sys_user su ,sys_user_role sur ,sys_role sr
+    WHERE su.id = sur.user_id
+            AND sur.role_id = sr.id
+    GROUP BY  su.staff_no ) tb_jms
+
+    ON staff_no = tb_jms.tb_staff_no
+left JOIN 
+    (SELECT su.staff_no tb_staff_no,
+         LISTAGG(sr.name,
+        ';') WITHIN GROUP (ORDER BY sr.name) AS tb_name
+    FROM sys_user su ,sys_app_user_role sur ,sys_app_role sr
+    WHERE su.id = sur.user_id
+            AND sur.role_id = sr.id
+            AND sr.type_id = 2
+    GROUP BY  su.staff_no ) tb_app
+    ON tb_jms.tb_staff_no = tb_app.tb_staff_no
+LEFT JOIN 
+    (SELECT su.staff_no tb_staff_no,
+         LISTAGG(sr.name,
+        ';') WITHIN GROUP (ORDER BY sr.name) AS tb_name
+    FROM sys_user su ,sys_app_user_role sur ,sys_app_role sr
+    WHERE su.id = sur.user_id
+            AND sur.role_id = sr.id
+            AND sr.type_id = 3
+    GROUP BY  su.staff_no ) tb_pc
+ON tb_jms.tb_staff_no = tb_pc.tb_staff_no
+
+
+查询结果，字段拼接：
+SELECT su.name 名称,
+         su.staff_no 员工编号,
+         su.dept_name 部门,
+         su.post_name 岗位,
+         LISTAGG(sr.name,
+        ',') WITHIN GROUP (ORDER BY sr.name ) as jms权限
+FROM sys_user su ,sys_user_role sur ,sys_role sr
+WHERE su.id = sur.user_id
+        AND sur.role_id = sr.id
+        AND su.network_name = 'RGM120'
+        AND su.incumbency_status = 1
+GROUP BY  su.name , su.staff_no , su.dept_name, su.post_name 
+
+9，oracle查询字段是否有重复
+查询
+SELECT user_id, COUNT(*)  
+FROM sys_user_attach  
+GROUP BY user_id  
+HAVING COUNT(*) > 1
+
+删除重复
+DELETE FROM sys_user_attach  
+WHERE ROWID NOT IN (  
+    SELECT MIN(ROWID)  
+    FROM your_table  
+    GROUP BY user_id   
+);
+
+
+10.Oracle分组查数
+select user_id, count(*) from sys_user_attach group by user_id
+
+6.删除表数据 
+truncate table sys_zt_menu_user_collect
+
+7.存储过程
+create or replace function MY2_EP(P_Password in varchar2) return varchar2 is
+  Result varchar2(60);
+  v_xorstr raw(200);
+begin
+  if P_Password is null then
+    Result:=null;
+  else
+    v_xorstr:=UTL_RAW.bit_xor(UTL_RAW.cast_to_raw(P_Password), UTL_RAW.cast_to_raw('#&^*'));
+    result :='EN&%:'||UTL_RAW.cast_to_varchar2(UTL_ENCODE.base64_encode(v_xorstr));
+  end if;
+  return(Result);
+end MY2_EP;
+8，查询无默认角色的用户
+select id from sys_user where id  not in(select user_id from sys_user_role where role_id =1)
+
+Excel:
+="insert into sys_user_role (id,user_id,role_id) values(OAUTH_SQE.nextval,"&A2&",1);"
+
+9，oracle执行计划查看
+ 
+ EXPLAIN PLAN FOR SELECT * FROM  sys_send_log   where  create_time >to_date('2023-09-26','yyyy-mm-dd') ;
+
+SELECT * FROM  TABLE(dbms_xplan.display);
+8.建表过程：
+1.oracle
+1.创建表
+ create table sys_role_network(
+id number not null primary key,
+"ROLE_ID" NUMBER(11,0), 
+	"NETWORK_ID" NUMBER(11,0) DEFAULT 0, 
+	"NETWORK_NAME" NVARCHAR2(60)
+)
+2.创建序列：
+ create sequence SYS_ROLE_NETWORK_OAUTH_SQE
+minvalue 1 
+maxvalue 999999999999999999999999999      -- 最大值  
+start with 21           -- 从21开始  
+increment by 1     -- 每次递增1  
+cache 20;            --制定存入缓存（也就是内存）序列值的个数 默认20
+3.创建自增触发器：
+ create or replace trigger sys_role_network_tr
+before insert on sys_role_network
+for each row
+begin
+select SYS_ROLE_NETWORK_OAUTH_SQE.nextval into :new.id from dual;
+end sys_role_network_tr;
+
+
+select * from namespace where id in (select NamespaceId from item where Value like ‘%oauth-api-update-use%’)
+
+建表： SYS_SEND_LOG
+
+创建序列：
+CREATE SEQUENCE SYS_SEND_LOG_SQE
+MINVALUE 1 
+NOMAXVALUE 
+INCREMENT BY 1 
+START WITH 1 NOCACHE ;
+
+创建表
+CREATE TABLE SYS_SEND_LOG 
+(
+  ID NUMBER(11) NOT NULL 
+, SEND_ACCOUNT NVARCHAR2(50) 
+, ACCOUNT NVARCHAR2(50) 
+, NETWORK NVARCHAR2(60) 
+, MSG NVARCHAR2(200) 
+, STATUS NUMBER(4) 
+, TYPE NUMBER(4) 
+, CREATE_BY NUMBER(11) 
+, UPDATE_BY NUMBER(11) 
+, CREATE_BY_NAME NVARCHAR2(50) 
+, UPDATE_BY_NAME NVARCHAR2(50) 
+, CREATE_TIME DATE 
+, UPDATE_TIME DATE 
+);
+
+COMMENT ON COLUMN SYS_SEND_LOG.ID IS '唯一标识';
+
+COMMENT ON COLUMN SYS_SEND_LOG.SEND_ACCOUNT IS '发送的账号';
+
+COMMENT ON COLUMN SYS_SEND_LOG.ACCOUNT IS '用户的编号';
+
+COMMENT ON COLUMN SYS_SEND_LOG.NETWORK IS '网点编号';
+
+COMMENT ON COLUMN SYS_SEND_LOG.MSG IS '发送内容';
+
+COMMENT ON COLUMN SYS_SEND_LOG.STATUS IS '状态';
+
+COMMENT ON COLUMN SYS_SEND_LOG.TYPE IS '类型';
+
+COMMENT ON COLUMN SYS_SEND_LOG.CREATE_BY IS '创建人ID';
+
+COMMENT ON COLUMN SYS_SEND_LOG.UPDATE_BY IS '最后更新人ID';
+
+COMMENT ON COLUMN SYS_SEND_LOG.CREATE_BY_NAME IS '创建人名称';
+
+COMMENT ON COLUMN SYS_SEND_LOG.UPDATE_BY_NAME IS '最后修改人名称';
+
+COMMENT ON COLUMN SYS_SEND_LOG.CREATE_TIME IS '创建时间';
+
+COMMENT ON COLUMN SYS_SEND_LOG.UPDATE_TIME IS '更新时间';
+
+4.Mysql
+1.建索引
+1、添加 PRIMARY KEY（主键索引）
+ALTER TABLE `表名` ADD PRIMARY KEY ( `列名` )
+2、添加 UNIQUE(唯一索引)
+ALTER TABLE `表名` ADD UNIQUE ( `列名` )
+3、添加 INDEX(普通索引)
+ALTER TABLE `表名` ADD INDEX index_name ( `列名` )
+4、添加 FULLTEXT(全文索引)
+ALTER TABLE `表名` ADD FULLTEXT ( `列名`)
+5、添加多列索引
+ALTER TABLE `表名` ADD INDEX index_name ( `列名1`, `列名2`, `列名3` )
+alter  table  sys_resource  add  index  idx_delete   (is_delete);
+alter  table  sys_resource  add  index  idx_enable   (is_enable);
+
+
+
+2.代码
+1.写法
+1.代码中oracle 1000限制处理
+List<SysPermission> listP = new ArrayList<>();
+List<SysPermission> addList = new ArrayList();
+if (sysPermissionIds.size() > 0) {
+    //Oracle最大每次1000,分批查询, 插入
+    List<Integer> rolePermissionId = Lists.newArrayList(sysPermissionIds);
+    List<List<Integer>> rolePermissionIdList = Lists.partition(rolePermissionId, 900);
+
+    for (List<Integer> tempList : rolePermissionIdList) {
+        listP = new ArrayList<>();
+        listP = sysPermissionService.list(new QueryWrapper<SysPermission>().lambda()
+                .in(SysPermission::getId, tempList)
+                .ge(SysPermission::getDeptLevelId, sysRole.getDeptLevelId()));
+
+
+    }
+}
+
+2.本地feign调用
+
+
+3.集合stream流
+  public static boolean doIsSameCollection(List<Integer> list1,List<Integer> list2){
+        list1.sort(Comparator.comparing(t -> Integer.hashCode(t)));
+        list2.sort(Comparator.comparing(t -> Integer.hashCode(t)));
+        return list1.toString().equals(list2.toString());
+}
+
+找出多个集合交集：
+List<Integer> list4 = Lists.newArrayList(1, 2, 3, 4,5,6);
+List<Integer> list5 = Lists.newArrayList( 3, 4,5,6);
+List<Integer> list6 = Lists.newArrayList(1,  3, 4,5,6);
+List<Integer> list7 = Lists.newArrayList(3, 4,5,6);
+List<List<Integer> > lists = new ArrayList<>();
+lists.add(list4);
+lists.add(list5);
+lists.add(list6);
+lists.add(list7);
+List<Integer> integers = lists.stream().reduce((list1, list2) -> {
+    list1.retainAll(list2);
+    return list1;
+}).orElse(emptyList());
+System.out.println(integers);
+
+集合对象分组：
+Map<String,List<Student>> StudentGroupMap = list.stream(). collect(Collectors.groupingBy(Student::getName));
+集合对象根据某个字段去重
+list.stream()
+       .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(SysZtMenuVo::getCode))), ArrayList::new));
+
+4,找出类中的元信息
+public static void main(String[] args) throws InstantiationException, IllegalAccessException {
+   ArrayList<Object> objects = new ArrayList<>();
+   objects.add(new AppLoginController());
+   objects.add(new  EmailCheckCodeController());
+   objects.add(new LoginController());
+   objects.add(new MdmAppLoginController());
+   objects.add(new OpsLoginController());
+   objects.add(new PdaAppLoginController());
+   objects.add(new SiteAppLoginController());
+   objects.add(new SmsCheckCodeController());
+   objects.add(new SorterLoginController());
+   objects.add(new StageLoginController());
+   objects.add(new ThirdLoginController());
+   objects.add(new TmsShipmentLoginController());
+   objects.add(new WmsAppLoginController());
+   objects.add(new WechatLoginController());
+   for (Object loginController1 : objects) {
+       String root= "";
+       if (loginController1.getClass().isAnnotationPresent(RequestMapping.class)&& loginController1.getClass().getAnnotation(RequestMapping.class).value().length>0){
+           root=  loginController1.getClass().getAnnotation(RequestMapping.class).value()[0];
+       }
+       if (root!=""&& !root.contains("/")){
+           root = "/"+root;
+       }
+       for (Method loginController :  loginController1.getClass().getDeclaredMethods()) {
+           if (loginController.isAnnotationPresent(GetMapping.class)||loginController.isAnnotationPresent(PostMapping.class)){
+               if (loginController.isAnnotationPresent(GetMapping.class)&&loginController.getAnnotation(GetMapping.class).value().length>0){
+                   System.out.println(root+ loginController.getAnnotation(GetMapping.class).value()[0]+"      "+(loginController.isAnnotationPresent(ApiOperation.class)?loginController.getAnnotation(ApiOperation.class).value():""));
+               }
+               if (loginController.isAnnotationPresent(PostMapping.class)&&loginController.getAnnotation(PostMapping.class).value().length>0) {
+                   System.out.println(root+ loginController.getAnnotation(PostMapping.class).value()[0]+"      "+( loginController.isAnnotationPresent(ApiOperation.class)?loginController.getAnnotation(ApiOperation.class).value():""));
+               }
+           }
+       }
+   }
+}
+5.读取项目中资源的内容
+ClassPathResource classPathResource = new ClassPathResource("br.json");
+BufferedReader fileInputStream = new BufferedReader(new InputStreamReader(classPathResource.getInputStream()));
+StringBuffer buffer = new StringBuffer();
+String data = null;
+while ((data = fileInputStream.readLine()) != null) {
+   buffer.append(data);
+}
+Result<List<SysResourceVO>> lists = JSON.parseObject(buffer.toString(), new TypeReference<Result<List<SysResourceVO>>>() {
+});
+fileInputStream.close();
+
+5.Mybaits_plus根据日期查询
+传参：2021-10-28 00:00:00
+DateTime dateTime = DateUtil.parseDate(userRecentLoginDTO.getLastLoginTime());
+LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+//以下代码顺序不能变，否则日期计算会错
+wrapper.isNotNull(SysUser::getLastLoginTime);
+wrapper.le(SysUser::getLastLoginTime,dateTime.toSqlDate());
+DateTime offset = dateTime.offset(DateField.DAY_OF_YEAR, interval);
+wrapper.ge(SysUser::getLastLoginTime,offset.toSqlDate());
+wrapper.select(SysUser::getStaffNo);
+IPage<SysUser> page = this.page(new Page<>(userRecentLoginDTO.getCurrent(), userRecentLoginDTO.getSize(), true), wrapper);
+
+6，本地调用接口
+public static void main(String[] args) {
+   String url = "https://demogw.jtexpress.co.th/oauth/sysUser/staffNosPage";
+   String s = "{\"current\":24,\"size\":20,\"staffNo\":\"\",\"countryId\":\"1\"}";
+   String s1 = "{\"current\":";
+   String s2 = ",\"size\":20,\"staffNo\":\"\",\"countryId\":\"1\"}";
+   for (int i = 24; i < 249; i++) {
+       s = s1+i+s2;
+       System.out.println(s);
+       HttpRequest body = HttpUtil.createPost(url).header("Authtoken", "a177d0926399489c9b4ba55119d4ef76").body(s);
+       HttpResponse execute = body.execute();
+       System.out.println(execute.body()
+       );
+   }
+}
+
+
+6.K8s
+1.k8s内执行
+1.接口测试
+curl localhost:8080/oauthapi/deleteRedisKey?redisKey=OAUTH:LOGIN:CHECK_FINGER:xiao
+curl localhost:8080/oauthapi/getRedisKey?redisKey=zhangyangzhangyang2@jtexpress.comsend_email_limits
+
+
+Ls -lrth
+
+查询：/oauthapi/getRedisKey?redisKey=OAUTH:APP:UPDATE_PASSWORD_TIME:zhangyang
+设置
+/oauthapi/setRedisKey?redisKey=OAUTH:APP:UPDATE_PASSWORD_TIME:zhangyang&value=2023-02-03
+查询：
+curl localhost:8080/oauthapi/getRedisKey?redisKey=OAUTH:APP:UPDATE_PASSWORD_TIME:816001085
+设置redis值
+
+curl  -X POST  localhost:8080/authnapi/setRedisKey  -H "Content-Type: application/json" -d '{"key":"OAUTH:APP:UPDATE_PASSWORD_TIME:816001085","value":"2023-01-03"}'
+curl localhost:8080/authnapi/getRedisKey?redisKey=OAUTH:APP:UPDATE_PASSWORD_TIME:816001085
+
+
+localhost:8080/authn/app/sendAppEmailCode?staffNo=zhangyang&code=1234
+
+测试登录
+ curl  -X POST  localhost:8080/authnapi/login  -H "Content-Type: application/json" -d '{"account":"zhangyang","password":"afdd0b4ad2ec172c586e2150770fbf9e"}'
+ curl  -X POST  localhost:8080/authnapi/app/login  -H "Content-Type: application/json" -d '{"account":"YLJGTest","password":"93cd4bc8e42894b413344258dfc65507"}'
+
+墨西哥生产app:
+ curl  -X POST  localhost:8080/authnapi/app/login  -H "Content-Type: application/json" -d '{"account":"00850964","password":"01efbdd27b2376e118a6af9db4b19a7a"}'
+
+ curl  -X POST  localhost:8080/authnapi/openPlatform/login  -H "Content-Type: application/json" -d '{"account":"zhangyang","password":"afdd0b4ad2ec172c586e2150770fbf9e"}'
+
+
+openapi接口
+
+curl localhost:8080/oauthopenapi/sysUser/order/detailByStaffNo?staffNo=zhangyang
+
+智兔app登录接口
+
+curl  -X POST  localhost:8080/ztoauthapi/login  -H "Content-Type: application/json" -d '{"account":"zhangyang","password":"75a3c671c558d37e51556ebf9c19dfd2"}'
+
+文件服务，获取签名地址：
+curl -X POST localhost:8080/file/oss/getUploadSignedUrl   -H "Content-Type: application/json"  -d '[{"projectName": "yl-platform-oauth-pai", "moduleName": "testossbr","fileName": "IMG20230410113234.jpg" }]'
+文件服务获取下载地址：
+curl -X POST localhost:8080/file/oss/getDownloadSignedUrl -H "Content-Type: application/json"  -d '["yl-platform-oauth-pai/testossbr/9dd1c260bb844b75b532806226f23aab.jpg"]'
+
+2.查日志：
+从终端查日志：
+grep --color "用户信息" yl-platform-iam-console-api-7bd8f8f759-bmldc-info-2023-11-11.0.log
+grep 张三 my.log | tail -n 2 //找到张三 并打印最后出现2次张三的行
+
+4.配置
+1.Jvm通用启动参数：
+
+java -XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=60.0 -XX:MinRAMPercentage=60.0 -XX:NewRa
+tio=2 -Xss512k -XX:MaxMetaspaceSize=256m -Djava.awt.headless=true -d64 -server -Djava.awt.headless=true -Djava.net.preferIPv4Stack=true -Djavax.servlet.request.encoding=UT
+F-8 -Dfile.encoding=UTF-8 -XX:+AlwaysPreTouch -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -XX:+HeapDumpOnOutOfMemoryEr
+ror -XX:HeapDumpPath=/yl-jmsmy-oauth-api/logs/yl-jmsmy-oauth-api/ -jar yl-oauth-api.jar --server.port=8080 --management.server.port=8070 --apollo.meta=http://configserver:
+8080
+
+2.本地启动配置：
+1.关于本地环境搭建：
+1，配置项目参数：
+示例：
+key:eureka.client.serviceUrl.defaultZone
+value:http://{urekak8s内网ip}:{k8s暴露的端口号}/eureka/
+key:spring.application.name
+value:项目名
+2，修改本地app.properties文件中appollo中系统信息里对应环境的访问地址
+例：
+apollo.meta=http://10.254.78.82:8080
+3，启动测试：
+本地访问示例：
+http://127.0.0.1:8080/oauthapi/login
+eureka地址：urekak8s内网ip：k8s暴露的端口号
+
+印尼test：
+10.33.61.15:30181 
+apollo.meta=http://10.39.171.230:8080
+
+泰国test
+10.33.61.12:30494 
+http://10.39.171.225:8080
+墨西哥test:
+http://10.33.61.13:30918/eureka/
+apollo.meta=http://10.39.188.238:8080
+菲律宾test
+10.24.11.79:30213 
+http://10.24.206.53:8080
+巴西test
+10.33.61.13:32084 
+http://10.39.116.242:8080
+国内test
+10.24.11.81:30202 
+http://10.24.133.145:8080
+极兔国际test
+10.33.61.14:30360 
+http://10.39.171.244:8080
+马来test
+
+http://10.39.170.175:8080
+10.33.61.14:30409
+越南test
+10.33.61.14:30439
+http://10.39.243.43:8080 
+集运
+10.24.11.80:30232 
+http://10.24.148.6:8080
+2.本地传参参数：
+{
+    "data": {
+        "current": 1,
+        "size": 20,
+        "name": null
+    },
+    "jwtUserDTO": {
+        "loginTime": "2022-09-07 20:06:59",
+        "status": 0,
+        "statusMsg": null,
+        "uuid": "4e14d39f202f47309c77fd1269ac267e",
+        "token": "4e14d39f202f47309c77fd1269ac267e",
+        "id": 733163,
+        "name": "张阳",
+        "staffNo": "zhangyang",
+        "networkId": 22,
+        "networkCode": "001188",
+        "networkName": "HQ",
+        "userType": 1,
+        "institutionalLevelId": 22,
+        "institutionalLevelDesc": "HQ",
+        "financialCenterId": 22,
+        "financialCenterDesc": "HQ",
+        "financialCenterCode": "001188",
+        "isFinancialCenter": 1,
+        "isDistributionCenter": 2,
+        "isFirstFranchisee": 2,
+        "isSecondFranchisee": 2,
+        "isEntrepot": 2,
+        "sex": 1,
+        "deptName": "IT",
+        "postName": "测试",
+        "postCode": null,
+        "ip": null,
+        "loginType": 1,
+        "appType": 1,
+        "mobile": "+8617625081753",
+        "phone": null,
+        "email": "zhangyang2@jtexpress.com",
+        "alertMsg": null,
+        "msgAudio": null,
+        "position": null,
+        "score": null,
+        "isSuspend": 2,
+        "countryId": 0,
+        "countryCode": null,
+        "countryDesc": null,
+        "configColor": null,
+        "configLanguage": null,
+        "pcLoginDevice": "222.71.40.154"
+    }
+}
+
+
+
+5.Excel
+1,字符串拼接公式
+="update sys_user set is_enable = 2 where staff_no = ' "&A1&" ' "
+效果：update sys_user set is_enable = 2 where staff_no = ' 00669901 ' 
+
+="update sys_resource set sys_code = ( select code from sys_resource where  module_type = 1 and id in( select id from sys_resource start with code = '"&A4&"'  connect by prior parent_code = code) )  where code = '"&A4&"';"
+效果：update sys_resource set sys_code = ( select code from sys_resource where  module_type = 1 and id in( select id from sys_resource start with code = 'DELIVERY_DEADLINE_CONFIG'  connect by prior parent_code = code) )  where code = 'DELIVERY_DEADLINE_CONFIG';
+
+2，指定选中
+选中最后一行的某个单元格，按住shift不动，再点击第一行要复制的单元格，就可以选中中间全部连续的单元格
+6.业务开发
+1.实现AOP记录日志
+package com.yl.oauth.api.aspect;
+
+import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+@Aspect
+@Component
+@Order(1)
+@Slf4j
+public class ControllerLogAspect {
+
+    @Value("${controller.log:AppLoginController,EmailCheckCodeController,LoginController,PermissionController,SmsCheckCodeController,SysPermissionController,SysPermissionResourceController,SysResourceController,SysRoleController,SysRoleResourceController,SysUserController,SysUserRoleController,SysZtFunctionController,SysZtMenuController}")
+    private String controllerLog;
+
+    @Pointcut("execution(* com.yl.oauth.api.controller.*.*(..))")
+    private void controllerAspect() {
+    }
+
+    @Around(value = "controllerAspect()")
+    public Object around(ProceedingJoinPoint pjp) throws Throwable {
+        Map<String, Object> logInfoCollector = Maps.newHashMap();
+        try {
+            boolean isLog = methodBefore(pjp, logInfoCollector);
+
+            Object proceed = pjp.proceed();
+
+            if (isLog) {
+                methodAfterReturning(proceed, logInfoCollector);
+            }
+            return proceed;
+        } catch (Exception e) {
+            log.error("ControllerLogAspect Response异常内容 ex: ", e);
+            throw e;
+        }
+    }
+
+    public boolean methodBefore(JoinPoint pjp, Map<String, Object> logInfoCollector) throws NoSuchMethodException {
+
+        try {
+            ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            HttpServletRequest request1 = servletRequestAttributes.getRequest();
+            String traceID = request1.getHeader("traceID");
+            logInfoCollector.put("[traceID]",traceID);
+            logInfoCollector.put("[cost]", System.currentTimeMillis());
+            String className=pjp.getTarget().getClass().getSimpleName();
+            // "AnswerController","ApiCarModelController","BjApiCarModelController"
+            List<String> controllerList = Arrays.asList(controllerLog.split(","));
+            if (!controllerList.contains(className)) {
+                return false;
+            }
+            String methodName = pjp.getSignature().getName();
+            Class<?> classTarget = pjp.getTarget().getClass();
+            Class<?>[] par = ((MethodSignature) pjp.getSignature()).getParameterTypes();
+            Method objMethod = classTarget.getMethod(methodName, par);
+            logInfoCollector.put("logHeader",className+" "+methodName+": {}");
+            PostMapping post = objMethod.getAnnotation(PostMapping.class);
+            GetMapping get = objMethod.getAnnotation(GetMapping.class);
+            RequestMapping request = objMethod.getAnnotation(RequestMapping.class);
+            DeleteMapping annotation = objMethod.getAnnotation(DeleteMapping.class);
+            if (post != null || get != null || request != null ||annotation!=null) {
+                Object[] args = pjp.getArgs();
+                for (Object obj : args) {
+                    logInfoCollector.put("[requestParam]", obj);
+                }
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("controllerAspect methodBefore: ", e);
+        }
+        return false;
+    }
+
+    public void methodAfterReturning(Object result, Map<String, Object> logInfoCollector) {
+        String logHeader = "";
+        try {
+            logHeader = logInfoCollector.get("logHeader").toString();
+            logInfoCollector.remove("logHeader");
+            logInfoCollector.put("[cost]", System.currentTimeMillis() - (long) logInfoCollector.get("[cost]"));
+            //logInfoCollector.put("[result]",result == null ? "返回为null" : result);
+        } catch (Exception e) {
+            log.error("controllerAspect methodAfterReturning: ", e);
+        }finally {
+            log.info(logHeader, JSON.toJSONString(logInfoCollector));
+        }
+    }
+    ThreadLocal<Long> startTime = new ThreadLocal<>();
+
+    @Before("controllerAspect()")
+    public void doBefore(JoinPoint joinPoint) throws Throwable {
+        startTime.set(System.currentTimeMillis());
+    }
+
+    @AfterReturning(returning = "ret", pointcut = "controllerAspect()")
+    public void doAfterReturning(Object ret) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        //记录请求的时间
+        log.info("Aspect_URL:" + request.getRequestURL().toString() + ", cost:" + (System.currentTimeMillis() - startTime.get()));
+    }
+
+}
+2.批量处理excel中字符，用逗号隔开
+package com.yl.oauth.api.vo;
+
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class test {
+    public static void main(String[] args) throws FileNotFoundException {
+        File f = new File("C:\\Users\\zhangyang2\\Desktop\\staffNo.xlsx");
+        Workbook wb = readExcel(new FileInputStream(f),f.getName());
+        Row row = null;
+        if(wb != null){
+            //获取第一个sheet
+            Sheet sheet = wb.getSheetAt(0);
+            //获取最大行数
+            int rownum = sheet.getPhysicalNumberOfRows();
+            //获取第一行
+            row = sheet.getRow(0);
+            //获取最大列数
+            List<String> all = new ArrayList<>();
+            StringBuffer stringBuffer = new StringBuffer();
+            for (int i = 1; i<rownum; i++) {
+                row = sheet.getRow(i);
+                String line1 = row.getCell(0).toString();
+                all.add(line1);
+                stringBuffer.append("("+line1+")"+",");
+            }
+            String inSql = getInSql(all);
+            System.out.println(inSql);
+        }
+
+
+    }
+    //这个下面是单独函数
+    public static Workbook readExcel(InputStream is, String extString){
+        Workbook wb = null;
+        extString = extString.substring(extString.lastIndexOf("."));
+        try {
+            if(".xls".equals(extString)){
+                return wb = new HSSFWorkbook(is);
+            }else if(".xlsx".equals(extString)){
+                return wb = new XSSFWorkbook(is);
+            }else {
+                return wb = null;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return wb;
+    }
+
+    public static String getInSql(List<String> idList) {
+        StringBuffer stringBuffer = new StringBuffer();
+        int inNum = 1;
+        for (int i = 0; i < idList.size(); i++) {
+
+            if (i == (idList.size() - 1)) {
+                stringBuffer.append("'" + idList.get(i) + "'");
+            } else if (inNum ==1000 && i > 0) {
+                stringBuffer.append("'" + idList.get(i) + "')OR staff_no IN (");
+                inNum = 1;
+            } else {
+                stringBuffer.append("'" + idList.get(i) + "',");
+                inNum++;
+            }
+
+        }
+        return "(" + stringBuffer.toString() + ")";
+    }
+}
+
+3.json写入excel
+    public static void main(String[] args) {
+        String url = "https://jmsgw.jtexpress.my/basicdata/loginLog/pages?current=1&size=5000&loginStartTime=2022-12-16+00:00:00&loginEndTime=2022-12-20+23:59:59";
+        Map<String, Object> paMap = new HashMap<>();
+//        paMap.put("authtoken","6661f64c52a74e52b48cb10f155add8a");
+//        paMap.put("routename","signInLog");
+        String s = HttpUtil.get(url, paMap);
+        HttpResponse execute = HttpUtil.createGet(url).header("authtoken", "6661f64c52a74e52b48cb10f155add8a").header("routename", "signInLog").execute();
+        String body = execute.body();
+        JSONObject jsonObject = JSON.parseObject(body);
+
+        JSONObject data = (JSONObject) jsonObject.get("data");
+
+        JSONArray records = (JSONArray) data.get("records");
+        cn.hutool.json.JSONArray objects = JSONUtil.parseArray(records);
+        List<LoginLogModel> rows = JSONUtil.toList(objects, LoginLogModel.class);
+// 通过工具类创建writer
+        ExcelWriter writer = ExcelUtil.getWriter("C:\\Users\\zhangyang2\\Desktop\\登陆日志.xlsx");
+// 合并单元格后的标题行，使用默认标题样式
+//        writer.merge(4, "一班成绩单");
+// 一次性写出内容，使用默认样式，强制输出标题
+        writer.write(rows, true);
+// 关闭writer，释放内存
+        writer.close();
+
+}
+
+4.浏览器导出excel
+       Page<LoginLogModel> pages = loginLogService.getPages(new Page(current, size), dto);
+        List<LoginLogModel> rows = pages.getRecords();
+// 通过工具类创建writer，默认创建xls格式
+        ExcelWriter writer = ExcelUtil.getWriter();
+// 一次性写出内容，使用默认样式，强制输出标题
+        writer.write(rows, true);
+//out为OutputStream，需要写出到的目标流
+
+//response为HttpServletResponse对象
+        response.setContentType("application/vnd.ms-excel;charset=utf-8");
+//test.xls是弹出下载对话框的文件名，不能为中文，中文请自行编码
+        response.setHeader("Content-Disposition", "attachment;filename=test.xls");
+        ServletOutputStream out = response.getOutputStream();
+
+        writer.flush(out, true);
+// 关闭writer，释放内存
+        writer.close();
+//此处记得关闭输出Servlet流
+        IoUtil.close(out);
+        return success();
+5.服务器查询redis：
+curl localhost:8080/oauthapi/getRedisKey?redisKey=OAUTH:LOGIN:CHECK_FINGER:zhangyang
+
+邮箱发送总次数："OAUTH:JMS:SEND_EMAIL_TOTAL_TIMES:jms_login_email"
+单个次数："OAUTH:JMS:SEND_EMAIL_TIMES:jmscenter@jtexpress.vn"
+6 查看代码行数
+git log --author=zhangyang2 --since=2022-06-01 --until=2022-12-31 --pretty=tformat: --numstat | awk '{ add += $1; subs += $2; loc += $1 - $2 } END { printf "added lines: %s, removed lines: %s, total lines: %s\n", add, subs, loc }'
+7.代码拼接sql，写到word
+ public static void main(String[] args) throws FileNotFoundException {
+
+        Word07Writer writer = new Word07Writer();
+
+        File f = new File("C:\\Users\\zhangyang2\\Desktop\\test.xlsx");
+        Workbook wb = readExcel(new FileInputStream(f),f.getName());
+        Row row = null;
+        if(wb != null){
+            //获取第一个sheet
+            Sheet sheet = wb.getSheetAt(0);
+            //获取最大行数
+            int rownum = sheet.getPhysicalNumberOfRows();
+            //获取第一行
+            row = sheet.getRow(0);
+            //获取最大列数
+            List<String> all = new ArrayList<>();
+            StringBuffer stringBuffer = new StringBuffer();
+            for (int i = 1; i<rownum; i++) {
+                row = sheet.getRow(i);
+                String line1 = row.getCell(1).toString();
+                all.add(line1);
+                stringBuffer.append("("+line1+")"+",");
+              String s = "insert into sys_user_role (id,user_id,role_id) values(OAUTH_SQE.nextval,(select id from sys_user where staff_no = '"+line1+"'),290);";
+                writer.addText(new Font("宋体", Font.PLAIN, 9), s);
+                System.out.println(s);
+            }
+//            String inSql = getInSql(all);
+//            System.out.println(inSql);
+        }
+        writer.flush(FileUtil.file("C:\\Users\\zhangyang2\\Desktop\\插入sql.docx"));
+// 关闭
+        writer.close();
+    }
+
+
+    //这个下面是单独函数
+    public static Workbook readExcel(InputStream is, String extString){
+        Workbook wb = null;
+        extString = extString.substring(extString.lastIndexOf("."));
+        try {
+            if(".xls".equals(extString)){
+                return wb = new HSSFWorkbook(is);
+            }else if(".xlsx".equals(extString)){
+                return wb = new XSSFWorkbook(is);
+            }else {
+                return wb = null;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return wb;
+    }
+
+    public static String getInSql(List<String> idList) {
+        StringBuffer stringBuffer = new StringBuffer();
+        int inNum = 1;
+        for (int i = 0; i < idList.size(); i++) {
+
+            if (i == (idList.size() - 1)) {
+                stringBuffer.append("'" + idList.get(i) + "'");
+            } else if (inNum ==1000 && i > 0) {
+                stringBuffer.append("'" + idList.get(i) + "')OR staff_no IN (");
+                inNum = 1;
+            } else {
+                stringBuffer.append("'" + idList.get(i) + "',");
+                inNum++;
+            }
+
+        }
+        return "(" + stringBuffer.toString() + ")";
+}
+
+8，文件服务http方式调用，下载文件并上传
+hutool工具版本为5.7.22
+public static void main(String[] args) {
+   List<String> urls = Arrays.asList(
+           "https://api.jet-ego.com/Upload/Images/20230530/_202305300928244.jpg"
+   );
+   for(String url: urls){
+       byte[] imageBytes = HttpUtil.downloadBytes(url);
+       String fileName = StrUtil.EMPTY;
+       if(StrUtil.isNotBlank(url) && url.lastIndexOf("/") > 0){
+           fileName = url.substring(url.lastIndexOf("/") + 1);
+       }
+       //    ExpUtil.throwEx(StrUtil.isBlank(fileName), StrUtil.format("获取文件名称为空：jtySyncImage={}", url));
+       OssUrlSignDTO ossUrlSignDTO = new OssUrlSignDTO();
+       ossUrlSignDTO.setFileName(fileName);
+       // 自定义模块名，后续会添加到下载路径中
+       ossUrlSignDTO.setModuleName("jtyTrackService");
+       // 自定义项目名，后续会添加到下载路径中
+       ossUrlSignDTO.setProjectName("yl-jty-ops-track-service-api");
+    //   Result<List<OssUrlSignVO>> result = ossApi.getUploadSignedUrl(Arrays.asList(ossUrlSignDTO), true);
+       //  ExpUtil.throwEx(null == result || CollectionUtils.isEmpty(result.getData()), StrUtil.format("上传文件获取文件地址失败：jtySyncImage={}", url));
+       // 获取地址
+       JSONArray objects = new JSONArray(Arrays.asList(ossUrlSignDTO));
+       HttpResponse execute = HttpRequest.post("http://10.112.17.212:31348/file/oss/getUploadSignedUrl").body(objects.toString()).execute();
+       String body = execute.body();
+       JSONObject jsonObject = JSONObject.parseObject(body);
+       com.alibaba.fastjson.JSONArray data1 = jsonObject.getJSONArray("data");
+       JSONObject jsonObject1 = JSONObject.parseObject(data1.get(0).toString());
+       String url1 = jsonObject1.getString("url");
+       String contentType = jsonObject1.getString("contentType");
+
+   //    OssUrlSignVO urlSignVO = result.getData().get(0);
+       HttpResponse httpResponse = HttpRequest.post(url1)
+               .setConnectionTimeout(30000)
+               .setReadTimeout(30000)
+               .contentType(contentType)
+               .method(Method.PUT)
+               .body(imageBytes)
+               .execute();
+       log.info("图片：{}, 文件上传响应：{}", url, httpResponse);
+       if(!httpResponse.isOk()){
+           log.error(StrUtil.format("图片上传oss失败：{}", httpResponse.body()));
+       }
+   }
+}
+10，从网页源代码中获取pdf，并下载到本地
+Pom:
+      <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>4.5.10</version>
+        </dependency>   
+
+public static void download(String urlString, String filename) throws Exception {
+       URL url = new URL(urlString);// 构造URL
+       URLConnection con = url.openConnection();// 打开连接
+       InputStream is = con.getInputStream();// 输入流
+       String code = con.getHeaderField("Content-Encoding");
+       if ((null != code) && code.equals("gzip")) {
+           GZIPInputStream gis = new GZIPInputStream(is);
+           // 1K的数据缓冲
+           byte[] bs = new byte[1024];
+           // 读取到的数据长度
+           int len;
+           // 输出的文件流
+           OutputStream os = new FileOutputStream(filename);
+           // 开始读取
+           while ((len = gis.read(bs)) != -1) {
+               os.write(bs, 0, len);
+           }
+           // 完毕，关闭所有链接
+           gis.close();
+           os.close();
+           is.close();
+       } else {
+           // 1K的数据缓冲
+           byte[] bs = new byte[1024];
+           // 读取到的数据长度
+           int len;
+           // 输出的文件流
+           OutputStream os = new FileOutputStream(filename);
+           // 开始读取
+           while ((len = is.read(bs)) != -1) {
+               os.write(bs, 0, len);
+           }
+           // 完毕，关闭所有链接
+           os.close();
+           is.close();
+       }
+   }
+   
+   public static void main(String[] args) throws Exception {
+       //请求列表页
+     //  String listContent = HttpUtil.get("https://www.cicpa.org.cn/ztzl1/Professional_standards/xxzztx/zyzz/sjzz/index.html");
+//        String listContent = HttpUtil.get("https://www.cicpa.org.cn/ztzl1/Professional_standards/xxzztx/zyzz/sjzz/index_1.html");
+       String listContent = HttpUtil.get("https://www.cicpa.org.cn/ztzl1/Professional_standards/xxzztx/zyzz/sjzz/index_2.html");
+//使用正则获取所有标题
+//        List<String> titles = ReUtil.findAll("<span class=\"text-ellipsis\">(.*?)</span>", listContent, 1);
+       List<String> titles = ReUtil.findAll("<a href=(.*?)>", listContent, 1);
+       for (String title : titles) {
+           //打印标题
+           if (title.contains(".pdf")) {
+//               System.out.println(title);
+               //"./202105/P020210507610990607178.pdf" target="_blank" title="中国注册会计师审计准则第1633号——电子商务对财务报表审计的影响（2006年2月15日发布）"
+               int target = title.indexOf("f");
+               String title1 = title;
+//https://www.cicpa.org.cn/ztzl1/Professional_standards/xxzztx/zyzz/sjzz/202105/P020210507610990607178.pdf
+               String pre = "https://www.cicpa.org.cn/ztzl1/Professional_standards/xxzztx/zyzz/sjzz";
+               String pdfUrl = pre + title.substring(2, target + 1);
+        //"./202105/P020210507610990607178.pdf" target="_blank" title="中国注册会计师审计准则第1633号——电子商务对财务报表审计的影响（2006年2月15日发布）"
+               int begin = title1.lastIndexOf("=");
+               int end = title1.lastIndexOf("）");
+               String fileName = title1.substring(begin + 2, end + 1);
+               download(pdfUrl, "C:\\Users\\zhangyang2\\Desktop\\审计准则\\"+fileName+".pdf");
+           }
+       }
+   }
+
+11，解析json
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+
+public class Demo {
+   public static void main(String[] args) {
+       String html = "{\"name\":\"Something must have been changed since you leave\"}";
+       JSONObject jsonObject = JSONUtil.parseObj(html);
+       String data = jsonObject.getStr("name");
+       //Something must have been changed since you leave
+       System.out.println(data);
+   }
+}
+12.邮箱测试
+public static void main(String[] args) {
+   MailAccount account = new MailAccount();
+   account.setHost("smtp-cdn.feishu.cn");
+   account.setPort(25);
+   account.setAuth(true);
+   account.setFrom("jmscenter1@jtexpress.vn");
+   account.setUser("jmscenter1@jtexpress.vn");
+   account.setPass("hdCr5johUuNNfTes");
+   String send = MailUtil.send(account, CollUtil.newArrayList("zhangyang2@jtexpress.com"), "测试", "邮件测试", false);
+   System.out.println(send);
+}
+12,读excel，处理好写入文本
+import cn.hutool.poi.excel.ExcelUtil;
+import cn.hutool.poi.excel.ExcelWriter;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public static void main(String[] args) throws FileNotFoundException {
+       String baseStr1 = "update sys_user set PASSWORD_SALT = '";
+       String baseStr2 = "' ,PASSWORD = '";
+       String baseStr3 = "',APP_PASSWORD= '";
+       String baseStr4= "',IS_INITIALIZATION =1,APP_IS_INITIALIZATION=1 where staff_no = '";
+       String baseStr5= "';";
+       String password = "Jt112233";
+       String appPassword = "Jt123456";
+       File f = new File("C:\\Users\\zhangyang2\\Desktop\\用户账号密码重置.xlsx");
+       Workbook wb = readExcel(new FileInputStream(f),f.getName());
+       Row row = null;
+       String[] array;
+       List<String> all = new ArrayList<>();
+       if(wb != null){
+           //获取第一个sheet
+           Sheet sheet = wb.getSheetAt(0);
+           //获取最大行数
+           int rownum = sheet.getPhysicalNumberOfRows();
+           for (int i = 1; i<rownum; i++) {
+               row = sheet.getRow(i);
+               String staffNo = String.valueOf(row.getCell(0));
+               String randomSalt = CommonUtil.getRandomSalt();
+               String defaultMd5Password = CommonUtil.getDefaultMd5Password(password, randomSalt);
+               String defaultMd5Password1 = CommonUtil.getDefaultMd5Password(appPassword, randomSalt);
+               String sql = baseStr1+randomSalt+baseStr2+defaultMd5Password+baseStr3+defaultMd5Password1+baseStr4+staffNo+baseStr5;
+               all.add(sql);
+           }
+       }
+       array = all.toArray(new String[0]);
+       write2(array);
+   }
+
+
+   public static void write2(String[] lines){
+       // 指定要写入的文件路径
+       String filePath = "C:\\Users\\zhangyang2\\Desktop\\重置密码生成不同的盐.txt";
+       // 使用try-with-resources语句自动关闭资源
+       try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+           // 要写入文件的字符串数组
+//            String[] lines = {"第一行内容", "第二行内容", "第三行内容"};
+
+           // 遍历数组，将每行内容写入文件
+           for (String line : lines) {
+               writer.write(line); // 写入一行内容
+               writer.newLine(); // 写入换行符，以区分不同的行
+           }
+
+           System.out.println("文件写入成功！");
+       } catch (IOException e) {
+           e.printStackTrace();
+           System.out.println("文件写入失败！");
+       }
+   }
+
+
+6，Arthas的使用：
+1,进入目录：命令：cd /opt
+2,启动arthas:
+命令：curl -O https://arthas.aliyun.com/arthas-boot.jar
+命令：java -jar arthas-boot.jar
+选择一个
+3,选择java进程
+4，查看dashboard  命令：dashboard
+5，命令格式：thread [线程id] | grep [名称]  命令示例：thread 1 | grep com.yl
+6，查看编译代码：jad  [类地址]  命令示例：  jad com.yl.oauth.api.controller.SysUserController
+7，idea插件使用：插件安装：Arthas-idea，鼠标选中，类，字段，方法右键获取执行命令
+8，监控方法调用：命令：watch com.yl.oauth.api.controller.SysUserController staffNosPage '{params,returnObj,throwExp}' -n 5 -x 3
+9，打印方法内部调用及耗时，定位和发现方法耗时；命令：trace com.yl.oauth.api.controller.SysUserController staffNosPage  -n 5 --skipJDKMethod false
+10，命令文档：https://arthas.aliyun.com/doc/commands.html
+11，全局命令：-x 展示结果属性的遍历深度，默认为1，嵌套属性不打印，-n 是执行的次数，q 退出， -c 指定classloader的hash值
+ 
+7，循环处理string
+transformedBeanNameCache.computeIfAbsent(name, beanName -> {
+   do {
+      beanName = beanName.substring(BeanFactory.FACTORY_BEAN_PREFIX.length());
+   }
+   while (beanName.startsWith(BeanFactory.FACTORY_BEAN_PREFIX));
+   return beanName;
+});
+8，es语句
+11.8-11.9，版本号在2.00-2.74之间，指定字段
+GET login_log_pro/_search
+{ 
+  "_source": {
+    "includes": ["userCode","appVersion"]
+  }, 
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "exists": {
+            "field": "appVersion"
+          }
+        },
+        {
+          "range": {
+            "loginTime": {
+              "gte": 1699372800000,
+              "lte": 1699543439000,
+              "format": "epoch_millis"
+            }
+          }
+        },
+        {
+          "range": {
+            "appVersion": {
+              "gt": "2.0.0",
+              "lt": "2.7.4"
+            }
+          }
+        }
+      ],
+      "filter": [
+        {
+          "match_all": {}
+        }
+      ],
+      "should": [],
+      "must_not": []
+    }
+  }
+}
+查询ip在一定范围内的
+
+GET login_log_pro/_search
+{
+  "_source": {
+    "includes": ["userCode","ip","loginTime"]
+  }, 
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "appType": {
+              "value": 1
+            }
+          }
+        },
+       {
+         "terms": {
+           "ip": 
+           [
+             "49.148.97.82",
+             "112.199.36.51",
+             "124.106.19.68",
+             "58.69.68.175",
+             "110.54.155.95",
+             "112.198.113.204",
+             "112.198.66.127",
+             "124.106.77.211"
+           ]
+
+           }
+
+       },
+        {
+          "range": {
+            "loginTime": {
+              "gte": "2024-01-01T00:00:00.000",
+              "lte": "2024-07-30T00:00:00.000"
+
+            }
+          }
